@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>World Markets Index — QuantitativeGenius.com</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #111118;
+      --bg-card: #14141c;
+      --bg-card-hover: #1a1a24;
+      --border: #1e1e2a;
+      --border-bright: #2a2a3a;
+      --text-primary: #e8e8ed;
+      --text-secondary: #8888a0;
+      --text-muted: #55556a;
+      --green: #00d4aa;
+      --green-dim: #00d4aa33;
+      --red: #ff4457;
+      --red-dim: #ff445733;
+      --blue: #4488ff;
+      --blue-dim: #4488ff22;
+      --gold: #d4a843;
+      --gold-dim: #d4a84333;
+    }
+
+    html { font-size: 15px; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ═══ HEADER ═══ */
+    .header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+    }
+    .brand-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+    .brand-subtitle {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.73rem;
+      font-weight: 500;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .header-time {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    /* ═══ HERO VALUE ═══ */
+    .hero {
+      padding: 32px 0 24px;
+    }
+    .hero-label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+    .hero-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .hero-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 3.6rem;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--text-primary);
+    }
+    .hero-change {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero-change-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 500;
+    }
+    .hero-change-pct {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .positive { color: var(--green); }
+    .positive-bg { background: var(--green-dim); color: var(--green); }
+    .negative { color: var(--red); }
+    .negative-bg { background: var(--red-dim); color: var(--red); }
+    .hero-arrow {
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+    .hero-timestamp {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* ═══ CHART SECTION ═══ */
+    .chart-section {
+      padding: 0 0 24px;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .chart-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .chart-toggles {
+      display: flex;
+      gap: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .chart-toggle {
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      font-family: 'DM Mono', monospace;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chart-toggle:hover { color: var(--text-secondary); }
+    .chart-toggle.active {
+      background: var(--blue);
+      color: #fff;
+    }
+    .chart-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      height: 380px;
+      position: relative;
+    }
+    .chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* ═══ CARDS GRID ═══ */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.4fr;
+      gap: 16px;
+      padding-bottom: 32px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--border-bright); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-country {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-flag {
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+    .card-country-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .card-index-name {
+      font-size: 0.73rem;
+      color: var(--text-secondary);
+      margin-top: 1px;
+    }
+    .card-weight {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.73rem;
+      color: var(--blue);
+      background: var(--blue-dim);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .card-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 2rem;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .card-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 14px;
+    }
+
+    .card-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .card-stat-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+    }
+    .card-stat-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* ═══ GLOBAL INDICES GRID CARD ═══ */
+    .indices-card {
+      display: flex;
+      flex-direction: column;
+    }
+    .indices-card-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    .indices-card-subtitle {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .indices-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .index-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .index-row:hover { background: var(--bg-card-hover); }
+    .index-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .index-flag { font-size: 1rem; flex-shrink: 0; }
+    .index-name {
+      font-size: 0.73rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .index-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+    .index-price {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.73rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .index-change {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.66rem;
+      font-weight: 500;
+    }
+
+    /* ═══ FOOTER ═══ */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 0;
+      text-align: center;
+    }
+    .footer a {
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer a:hover { color: var(--gold); }
+    .footer-sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ═══ SKELETON LOADING ═══ */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-card-hover) 50%, var(--bg-secondary) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-value {
+      width: 240px;
+      height: 52px;
+    }
+    .skeleton-change {
+      width: 120px;
+      height: 28px;
+    }
+    .skeleton-card-value {
+      width: 160px;
+      height: 36px;
+    }
+
+    /* ═══ RESPONSIVE ═══ */
+    @media (max-width: 960px) {
+      .cards-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .indices-card {
+        grid-column: 1 / -1;
+      }
+    }
+    @media (max-width: 640px) {
+      html { font-size: 14px; }
+      .container { padding: 0 16px; }
+      .header-inner { justify-content: center; text-align: center; }
+      .hero-value { font-size: 2.6rem; }
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+      .chart-container { height: 280px; }
+      .indices-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="container header-inner">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="World Markets Index logo">
+          <circle cx="18" cy="18" r="17" stroke="#d4a843" stroke-width="1.5"/>
+          <path d="M8 22 L13 12 L18 18 L23 8 L28 16" stroke="#00d4aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="13" cy="12" r="2" fill="#d4a843"/>
+          <circle cx="23" cy="8" r="2" fill="#d4a843"/>
+        </svg>
+        <div>
+          <div class="brand-title">World Markets Index</div>
+          <div class="brand-subtitle">GDP-Weighted Composite</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="live-badge"><span class="live-dot"></span> Live</div>
+        <div class="header-time" id="headerTime">--:--:-- UTC</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO VALUE -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-label">Composite Index Value</div>
+      <div class="hero-value-row">
+        <div class="hero-value" id="heroValue">
+          <div class="skeleton skeleton-value"></div>
+        </div>
+        <div class="hero-change" id="heroChange">
+          <div class="skeleton skeleton-change"></div>
+        </div>
+      </div>
+      <div class="hero-timestamp" id="heroTimestamp">Loading...</div>
+    </div>
+  </section>
+
+  <!-- CHART -->
+  <section class="chart-section">
+    <div class="container">
+      <div class="chart-header">
+        <div class="chart-title">Composite Index Performance</div>
+        <div class="chart-toggles">
+          <button class="chart-toggle" data-range="1H">1H</button>
+          <button class="chart-toggle" data-range="1D">1D</button>
+          <button class="chart-toggle" data-range="1W">1W</button>
+          <button class="chart-toggle active" data-range="1Y">1Y</button>
+          <button class="chart-toggle" data-range="MAX">MAX</button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas id="mainChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- CARDS -->
+  <section class="cards-section">
+    <div class="container cards-grid">
+      <!-- USA Card -->
+      <div class="card" id="usaCard">
+        <div class="card-header">
+          <div class="card-country">
+            <span class="card-flag">🇺🇸</span>
+            <div>
+              <div class="card-country-name">United States</div>
+              <div class="card-index-name">S&P 500</div>
+            </div>
+          </div>
+          <span class="card-weight">24.5%</span>
+        </div>
+        <div class="card-value" id="usaValue"><div class="skeleton skeleton-card-value"></div></div>
+        <div class="card-change" id="usaChange">--</div>
+        <div class="card-stats">
+          <div><div class="card-stat-label">GDP (Nominal)</div><div class="card-stat-value">$28.78T</div></div>
+          <div><div class="card-stat-label">GDP (PPP)</div><div class="card-stat-value">$28.78T</div></div>
+          <div><div class="card-stat-label">Weight</div><div class="card-stat-value">24.5%</div></div>
+          <div><div class="card-stat-label">Contribution</div><div class="card-stat-value" id="usaContrib">--</div></div>
+        </div>
+      </div>
+
+      <!-- China Card -->
+      <div class="card" id="chinaCard">
+        <div class="card-header">
+          <div class="card-country">
+            <span class="card-flag">🇨🇳</span>
+            <div>
+              <div class="card-country-name">China</div>
+              <div class="card-index-name">SSE Composite</div>
+            </div>
+          </div>
+          <span class="card-weight">14.3%</span>
+        </div>
+        <div class="card-value" id="chinaValue"><div class="skeleton skeleton-card-value"></div></div>
+        <div class="card-change" id="chinaChange">--</div>
+        <div class="card-stats">
+          <div><div class="card-stat-label">GDP (Nominal)</div><div class="card-stat-value">$18.53T</div></div>
+          <div><div class="card-stat-label">GDP (PPP)</div><div class="card-stat-value">$35.29T</div></div>
+          <div><div class="card-stat-label">Weight</div><div class="card-stat-value">14.3%</div></div>
+          <div><div class="card-stat-label">Contribution</div><div class="card-stat-value" id="chinaContrib">--</div></div>
+        </div>
+      </div>
+
+      <!-- 18 Global Indices Card -->
+      <div class="card indices-card" id="indicesCard">
+        <div class="indices-card-title">18 Global Indices</div>
+        <div class="indices-card-subtitle">GDP-weighted components · Real-time</div>
+        <div class="indices-grid" id="indicesGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <a href="https://QuantitativeGenius.com" target="_blank" rel="noopener noreferrer">Sponsored by QuantitativeGenius.com</a>
+      <div class="footer-sub">20 Global Markets · GDP-Weighted · Updated Every 60s</div>
+    </div>
+  </footer>
+
+<script>
+(function() {
+  'use strict';
+
+  // ─── State ───
+  let chart = null;
+  let currentRange = '1Y';
+  let compositeData = null;
+
+  // Determine API base URL (handles deployed proxy path)
+  const API_BASE = (() => {
+    const portTag = '__PORT_5001__';
+    // In deployment, __PORT_5001__ gets replaced with the proxy path like /port/5001
+    if (!portTag.startsWith('__')) return portTag;
+    return '';
+  })();
+
+  // ─── Utilities ───
+  function fmt(n, decimals = 2) {
+    if (n == null || isNaN(n)) return '--';
+    return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+  function fmtCompact(n) {
+    if (n == null || isNaN(n)) return '--';
+    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+    if (Math.abs(n) >= 1e4) return (n / 1e3).toFixed(1) + 'K';
+    return fmt(n);
+  }
+
+  // ─── Clock ───
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('headerTime').textContent =
+      now.toUTCString().replace('GMT', 'UTC');
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ─── Fetch Composite Data ───
+  async function fetchComposite() {
+    try {
+      const res = await fetch(API_BASE + '/api/composite');
+      const data = await res.json();
+      compositeData = data;
+      renderHero(data);
+      renderCards(data);
+    } catch (e) {
+      console.error('Failed to fetch composite:', e);
+    }
+  }
+
+  function renderHero(data) {
+    const heroValue = document.getElementById('heroValue');
+    const heroChange = document.getElementById('heroChange');
+    const heroTimestamp = document.getElementById('heroTimestamp');
+
+    heroValue.textContent = fmt(data.composite);
+
+    const isPositive = data.dailyChangePct >= 0;
+    const arrow = isPositive ? '▲' : '▼';
+    const cls = isPositive ? 'positive' : 'negative';
+    const bgCls = isPositive ? 'positive-bg' : 'negative-bg';
+
+    heroChange.innerHTML = `
+      <span class="hero-arrow ${cls}">${arrow}</span>
+      <span class="hero-change-value ${cls}">${isPositive ? '+' : ''}${fmt(data.dailyChange)}</span>
+      <span class="hero-change-pct ${bgCls}">${isPositive ? '+' : ''}${fmt(data.dailyChangePct)}%</span>
+    `;
+
+    if (data.timestamp) {
+      const d = new Date(data.timestamp);
+      heroTimestamp.textContent = 'Last updated: ' + data.timestamp;
+    }
+  }
+
+  function renderCards(data) {
+    if (!data.countries) return;
+
+    const usa = data.countries.find(c => c.country === 'USA');
+    const china = data.countries.find(c => c.country === 'China');
+    const others = data.countries.filter(c => c.country !== 'USA' && c.country !== 'China');
+
+    // USA card
+    if (usa) {
+      document.getElementById('usaValue').textContent = fmtCompact(usa.price);
+      const usaPos = (usa.change_pct || 0) >= 0;
+      document.getElementById('usaChange').innerHTML = `<span class="${usaPos ? 'positive' : 'negative'}">${usaPos ? '+' : ''}${fmt(usa.change_pct || 0)}%</span>`;
+      document.getElementById('usaContrib').textContent = fmt(usa.contribution);
+    }
+
+    // China card
+    if (china) {
+      document.getElementById('chinaValue').textContent = fmtCompact(china.price);
+      const chinaPos = (china.change_pct || 0) >= 0;
+      document.getElementById('chinaChange').innerHTML = `<span class="${chinaPos ? 'positive' : 'negative'}">${chinaPos ? '+' : ''}${fmt(china.change_pct || 0)}%</span>`;
+      document.getElementById('chinaContrib').textContent = fmt(china.contribution);
+    }
+
+    // 18 Global Indices
+    const grid = document.getElementById('indicesGrid');
+    grid.innerHTML = others.map(c => {
+      const isPos = (c.change_pct || 0) >= 0;
+      const cls = isPos ? 'positive' : 'negative';
+      const sign = isPos ? '+' : '';
+      return `
+        <div class="index-row">
+          <div class="index-left">
+            <span class="index-flag">${c.flag || ''}</span>
+            <span class="index-name">${c.country}</span>
+          </div>
+          <div class="index-right">
+            <span class="index-price">${fmtCompact(c.price)}</span>
+            <span class="index-change ${cls}">${sign}${fmt(c.change_pct || 0)}%</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ─── Chart ───
+  async function fetchHistory(range) {
+    try {
+      const res = await fetch(API_BASE + '/api/history?range=' + range);
+      const json = await res.json();
+      return json.data || [];
+    } catch (e) {
+      console.error('Failed to fetch history:', e);
+      return [];
+    }
+  }
+
+  async function renderChart(range) {
+    currentRange = range;
+    const data = await fetchHistory(range);
+
+    // Update toggle buttons
+    document.querySelectorAll('.chart-toggle').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.range === range);
+    });
+
+    const labels = data.map(d => d.timestamp);
+    const values = data.map(d => d.value);
+
+    // Determine if overall trend is positive
+    const isUp = values.length >= 2 && values[values.length - 1] >= values[0];
+    const lineColor = isUp ? '#00d4aa' : '#ff4457';
+    const fillColor = isUp ? 'rgba(0,212,170,0.08)' : 'rgba(255,68,87,0.08)';
+
+    // Time unit for x-axis
+    let timeUnit = 'month';
+    if (range === '1H' || range === '1D') timeUnit = 'hour';
+    else if (range === '1W') timeUnit = 'day';
+    else if (range === '1Y') timeUnit = 'month';
+    else if (range === 'MAX') timeUnit = 'year';
+
+    if (chart) chart.destroy();
+
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'World Markets Index',
+          data: values,
+          borderColor: lineColor,
+          backgroundColor: fillColor,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: lineColor,
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a24',
+            titleColor: '#8888a0',
+            bodyColor: '#e8e8ed',
+            borderColor: '#2a2a3a',
+            borderWidth: 1,
+            titleFont: { family: 'DM Mono', size: 11 },
+            bodyFont: { family: 'DM Mono', size: 13, weight: '500' },
+            padding: 12,
+            cornerRadius: 8,
+            displayColors: false,
+            callbacks: {
+              label: function(ctx) {
+                return fmt(ctx.parsed.y);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: timeUnit },
+            grid: {
+              color: 'rgba(30,30,42,0.6)',
+              drawBorder: false,
+            },
+            ticks: {
+              color: '#55556a',
+              font: { family: 'DM Mono', size: 10 },
+              maxTicksLimit: 8,
+            },
+            border: { display: false },
+          },
+          y: {
+            grid: {
+              color: 'rgba(30,30,42,0.6)',
+              drawBorder: false,
+            },
+            ticks: {
+              color: '#55556a',
+              font: { family: 'DM Mono', size: 10 },
+              callback: v => v.toLocaleString(),
+            },
+            border: { display: false },
+          }
+        }
+      }
+    });
+  }
+
+  // ─── Toggle Handlers ───
+  document.querySelectorAll('.chart-toggle').forEach(btn => {
+    btn.addEventListener('click', () => renderChart(btn.dataset.range));
+  });
+
+  // ─── Init ───
+  async function init() {
+    await fetchComposite();
+    await renderChart('1Y');
+
+    // Auto-refresh every 60s
+    setInterval(fetchComposite, 60000);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
