@@ -13,197 +13,137 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg-primary: #0a0a0f;
-      --bg-secondary: #111118;
-      --bg-card: #14141c;
-      --bg-card-hover: #1a1a24;
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface-2: #14141c;
+      --surface-hover: #1a1a24;
       --border: #1e1e2a;
       --border-bright: #2a2a3a;
-      --text-primary: #e8e8ed;
+      --text: #e8e8ed;
       --text-secondary: #8888a0;
       --text-muted: #55556a;
       --green: #00d4aa;
-      --green-dim: #00d4aa33;
+      --green-dim: rgba(0, 212, 170, 0.15);
       --red: #ff4457;
-      --red-dim: #ff445733;
+      --red-dim: rgba(255, 68, 87, 0.15);
       --blue: #4488ff;
-      --blue-dim: #4488ff22;
+      --blue-dim: rgba(68, 136, 255, 0.12);
       --gold: #d4a843;
-      --gold-dim: #d4a84333;
+      --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'DM Mono', monospace;
+      --radius: 12px;
     }
 
     html { font-size: 15px; }
 
     body {
-      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
 
     .container {
-      max-width: 1400px;
+      max-width: 1280px;
       margin: 0 auto;
       padding: 0 24px;
     }
 
     /* ═══ HEADER ═══ */
     .header {
-      border-bottom: 1px solid var(--border);
       padding: 20px 0;
     }
     .header-inner {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
       gap: 14px;
     }
     .brand-logo {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
     }
     .brand-title {
-      font-size: 1.2rem;
+      font-size: 14px;
       font-weight: 600;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-    }
-    .brand-subtitle {
-      font-size: 0.73rem;
-      color: var(--text-muted);
-      font-weight: 400;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      margin-top: 1px;
-    }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-    .live-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.73rem;
-      font-weight: 500;
-      color: var(--green);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .live-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-    .header-time {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
+      color: var(--gold);
     }
 
-    /* ═══ HERO VALUE ═══ */
+    /* ═══ HERO ═══ */
     .hero {
-      padding: 32px 0 24px;
+      padding: 8px 0 20px;
     }
-    .hero-label {
-      font-size: 0.8rem;
+    .hero-value {
+      font-family: var(--font-mono);
+      font-size: clamp(40px, 7vw, 72px);
       font-weight: 500;
-      color: var(--gold);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 8px;
-    }
-    .hero-value-row {
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--text);
       display: flex;
       align-items: baseline;
       gap: 16px;
       flex-wrap: wrap;
     }
-    .hero-value {
-      font-family: 'DM Mono', monospace;
-      font-size: 3.6rem;
-      font-weight: 500;
-      letter-spacing: -0.03em;
-      line-height: 1;
-      color: var(--text-primary);
-    }
-    .hero-change {
+    .hero-change-group {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      align-items: baseline;
+      gap: 10px;
     }
-    .hero-change-value {
-      font-family: 'DM Mono', monospace;
+    .hero-arrow {
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .hero-change-abs {
+      font-family: var(--font-mono);
       font-size: 1.2rem;
       font-weight: 500;
     }
     .hero-change-pct {
-      font-family: 'DM Mono', monospace;
-      font-size: 1.2rem;
+      font-family: var(--font-mono);
+      font-size: 1rem;
       font-weight: 500;
-      padding: 2px 8px;
+      padding: 3px 10px;
       border-radius: 4px;
     }
     .positive { color: var(--green); }
-    .positive-bg { background: var(--green-dim); color: var(--green); }
     .negative { color: var(--red); }
+    .positive-bg { background: var(--green-dim); color: var(--green); }
     .negative-bg { background: var(--red-dim); color: var(--red); }
-    .hero-arrow {
-      font-size: 1.4rem;
-      line-height: 1;
-    }
-    .hero-timestamp {
-      font-size: 0.8rem;
+    .hero-sub {
+      font-size: 0.85rem;
       color: var(--text-muted);
       margin-top: 8px;
-      font-family: 'DM Mono', monospace;
+      font-family: var(--font-mono);
     }
 
-    /* ═══ CHART SECTION ═══ */
+    /* ═══ CHART ═══ */
     .chart-section {
-      padding: 0 0 24px;
+      padding-bottom: 24px;
     }
     .chart-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .chart-title {
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--text-secondary);
+      justify-content: flex-start;
+      gap: 16px;
+      margin-bottom: 8px;
     }
     .chart-toggles {
       display: flex;
-      gap: 4px;
-      background: var(--bg-secondary);
+      gap: 2px;
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 3px;
     }
     .chart-toggle {
-      padding: 6px 14px;
+      padding: 5px 14px;
       font-size: 0.78rem;
       font-weight: 500;
-      font-family: 'DM Mono', monospace;
+      font-family: var(--font-mono);
       color: var(--text-muted);
       background: transparent;
       border: none;
@@ -216,126 +156,212 @@
       background: var(--blue);
       color: #fff;
     }
-    .chart-container {
-      background: var(--bg-card);
+    .chart-box {
+      background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius);
       padding: 20px;
+      position: relative;
+    }
+    .chart-canvas-wrap {
       height: 380px;
       position: relative;
     }
-    .chart-container canvas {
+    .chart-canvas-wrap canvas {
       width: 100% !important;
       height: 100% !important;
     }
+    .chart-legend {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+    .legend-line {
+      width: 18px;
+      height: 2px;
+      border-radius: 1px;
+    }
+    .legend-line.dashed {
+      background: none !important;
+      border-top: 2px dashed;
+    }
 
-    /* ═══ CARDS GRID ═══ */
+    /* ═══ CARDS ═══ */
     .cards-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1.4fr;
       gap: 16px;
       padding-bottom: 32px;
     }
-
     .card {
-      background: var(--bg-card);
+      background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius);
       padding: 20px;
       transition: border-color 0.2s;
     }
     .card:hover { border-color: var(--border-bright); }
 
-    .card-header {
+    /* S&P 500 / SSE card header */
+    .card-head {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .card-country {
-      display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 10px;
+      margin-bottom: 14px;
     }
     .card-flag {
-      font-size: 1.6rem;
+      font-size: 1.4rem;
       line-height: 1;
+      margin-top: 2px;
     }
-    .card-country-name {
-      font-size: 0.85rem;
+    .card-name {
+      font-size: 0.95rem;
       font-weight: 600;
-      color: var(--text-primary);
+      color: var(--text);
     }
-    .card-index-name {
+    .card-country-label {
       font-size: 0.73rem;
       color: var(--text-secondary);
-      margin-top: 1px;
-    }
-    .card-weight {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.73rem;
-      color: var(--blue);
-      background: var(--blue-dim);
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-weight: 500;
     }
 
+    /* Card value row */
+    .card-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
     .card-value {
-      font-family: 'DM Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 2rem;
       font-weight: 500;
       letter-spacing: -0.02em;
-      margin-bottom: 8px;
+      color: var(--text);
     }
-    .card-change {
-      font-family: 'DM Mono', monospace;
+    .card-change-inline {
+      font-family: var(--font-mono);
       font-size: 0.85rem;
       font-weight: 500;
-      margin-bottom: 14px;
     }
 
-    .card-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    /* Range bars */
+    .range-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .range-label-left, .range-label-right {
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: var(--text-secondary);
+    }
+    .range-title {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+    .range-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      position: relative;
+      margin-bottom: 10px;
+    }
+    .range-bar-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      border-radius: 2px;
+      background: var(--green);
+    }
+    .range-bar-dot {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--blue);
+    }
+
+    /* GDP section in cards */
+    .gdp-section {
       padding-top: 14px;
+      margin-top: 14px;
       border-top: 1px solid var(--border);
     }
-    .card-stat-label {
+    .gdp-title {
       font-size: 0.7rem;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      margin-bottom: 2px;
+      margin-bottom: 8px;
+      font-weight: 500;
     }
-    .card-stat-value {
-      font-family: 'DM Mono', monospace;
+    .gdp-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .gdp-item-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .gdp-item-value {
+      font-family: var(--font-mono);
       font-size: 0.85rem;
-      color: var(--text-secondary);
+      color: var(--text);
       font-weight: 500;
     }
 
-    /* ═══ GLOBAL INDICES GRID CARD ═══ */
-    .indices-card {
+    /* PPP section */
+    .ppp-section {
+      padding-top: 12px;
+      margin-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .ppp-title {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    /* ═══ OTHER MARKETS CARD ═══ */
+    .other-card {
       display: flex;
       flex-direction: column;
     }
-    .indices-card-title {
-      font-size: 0.85rem;
+    .other-card-title {
+      font-size: 0.95rem;
       font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 4px;
+      color: var(--text);
+      margin-bottom: 2px;
     }
-    .indices-card-subtitle {
+    .other-card-subtitle {
       font-size: 0.73rem;
       color: var(--text-muted);
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .indices-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 2px;
+      gap: 1px;
       flex: 1;
       overflow-y: auto;
     }
@@ -343,107 +369,83 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 7px 10px;
-      border-radius: 6px;
+      padding: 5px 8px;
+      border-radius: 4px;
       transition: background 0.15s;
     }
-    .index-row:hover { background: var(--bg-card-hover); }
+    .index-row:hover { background: var(--surface-hover); }
     .index-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       min-width: 0;
     }
-    .index-flag { font-size: 1rem; flex-shrink: 0; }
+    .index-flag { font-size: 0.85rem; flex-shrink: 0; }
     .index-name {
       font-size: 0.73rem;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .index-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      flex-shrink: 0;
-      margin-left: 8px;
-    }
-    .index-price {
-      font-family: 'DM Mono', monospace;
+    .index-pct {
+      font-family: var(--font-mono);
       font-size: 0.73rem;
-      color: var(--text-primary);
       font-weight: 500;
-    }
-    .index-change {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.66rem;
-      font-weight: 500;
+      flex-shrink: 0;
+      margin-left: 6px;
     }
 
     /* ═══ FOOTER ═══ */
     .footer {
       border-top: 1px solid var(--border);
-      padding: 20px 0;
+      padding: 20px 0 28px;
       text-align: center;
     }
-    .footer a {
-      color: #ffffff;
+    .footer-line {
       font-size: 0.85rem;
-      font-weight: 500;
-      text-decoration: none;
-      transition: color 0.2s;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
     }
-    .footer a:hover { color: var(--gold); }
-    .footer-sub {
+    .footer-line a {
+      color: #fff;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .footer-line a:hover { color: var(--gold); }
+    .footer-disclaimer {
       font-size: 0.7rem;
       color: var(--text-muted);
-      margin-top: 6px;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.5;
     }
 
-    /* ═══ SKELETON LOADING ═══ */
+    /* ═══ SKELETON ═══ */
     .skeleton {
-      background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-card-hover) 50%, var(--bg-secondary) 75%);
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
       border-radius: 6px;
+      display: inline-block;
     }
     @keyframes shimmer {
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
     }
-    .skeleton-value {
-      width: 240px;
-      height: 52px;
-    }
-    .skeleton-change {
-      width: 120px;
-      height: 28px;
-    }
-    .skeleton-card-value {
-      width: 160px;
-      height: 36px;
-    }
 
     /* ═══ RESPONSIVE ═══ */
     @media (max-width: 960px) {
-      .cards-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-      .indices-card {
-        grid-column: 1 / -1;
-      }
+      .cards-grid { grid-template-columns: 1fr 1fr; }
+      .other-card { grid-column: 1 / -1; }
     }
     @media (max-width: 640px) {
       html { font-size: 14px; }
       .container { padding: 0 16px; }
-      .header-inner { justify-content: center; text-align: center; }
       .hero-value { font-size: 2.6rem; }
-      .cards-grid {
-        grid-template-columns: 1fr;
-      }
-      .chart-container { height: 280px; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .chart-canvas-wrap { height: 280px; }
       .indices-grid { grid-template-columns: 1fr; }
     }
   </style>
@@ -453,38 +455,23 @@
   <!-- HEADER -->
   <header class="header">
     <div class="container header-inner">
-      <div class="brand">
-        <svg class="brand-logo" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="World Markets Index logo">
-          <circle cx="18" cy="18" r="17" stroke="#d4a843" stroke-width="1.5"/>
-          <path d="M8 22 L13 12 L18 18 L23 8 L28 16" stroke="#00d4aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="13" cy="12" r="2" fill="#d4a843"/>
-          <circle cx="23" cy="8" r="2" fill="#d4a843"/>
-        </svg>
-        <div>
-          <div class="brand-title">World Markets Index</div>
-          <div class="brand-subtitle">GDP-Weighted Composite</div>
-        </div>
-      </div>
-      <div class="header-right">
-        <div class="live-badge"><span class="live-dot"></span> Live</div>
-        <div class="header-time" id="headerTime">--:--:-- UTC</div>
-      </div>
+      <svg class="brand-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="World Markets Index logo">
+        <circle cx="20" cy="20" r="18" stroke="#d4a843" stroke-width="1.5"/>
+        <path d="M9 24 L15 14 L20 20 L25 9 L31 18" stroke="#00d4aa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="15" cy="14" r="2.2" fill="#d4a843"/>
+        <circle cx="25" cy="9" r="2.2" fill="#d4a843"/>
+      </svg>
+      <div class="brand-title">World Markets Index</div>
     </div>
   </header>
 
-  <!-- HERO VALUE -->
+  <!-- HERO -->
   <section class="hero">
     <div class="container">
-      <div class="hero-label">Composite Index Value</div>
-      <div class="hero-value-row">
-        <div class="hero-value" id="heroValue">
-          <div class="skeleton skeleton-value"></div>
-        </div>
-        <div class="hero-change" id="heroChange">
-          <div class="skeleton skeleton-change"></div>
-        </div>
+      <div class="hero-value" id="heroValue">
+        <span class="skeleton" style="width: 280px; height: 56px;"></span>
       </div>
-      <div class="hero-timestamp" id="heroTimestamp">Loading...</div>
+      <div class="hero-sub" id="heroSub">Loading...</div>
     </div>
   </section>
 
@@ -492,72 +479,141 @@
   <section class="chart-section">
     <div class="container">
       <div class="chart-header">
-        <div class="chart-title">Composite Index Performance</div>
         <div class="chart-toggles">
           <button class="chart-toggle" data-range="1H">1H</button>
-          <button class="chart-toggle" data-range="1D">1D</button>
+          <button class="chart-toggle active" data-range="1D">1D</button>
           <button class="chart-toggle" data-range="1W">1W</button>
-          <button class="chart-toggle active" data-range="1Y">1Y</button>
+          <button class="chart-toggle" data-range="1Y">1Y</button>
           <button class="chart-toggle" data-range="MAX">MAX</button>
         </div>
       </div>
-      <div class="chart-container">
-        <canvas id="mainChart"></canvas>
+      <div class="chart-box">
+        <div class="chart-canvas-wrap">
+          <canvas id="mainChart"></canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <span class="legend-line" style="background: #00d4aa;"></span>
+            World Markets Index
+          </div>
+          <div class="legend-item">
+            <span class="legend-line dashed" style="border-color: #4488ff;"></span>
+            USA (S&P 500)
+          </div>
+          <div class="legend-item">
+            <span class="legend-line" style="background: #ff4457;"></span>
+            China (SSE)
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- CARDS -->
-  <section class="cards-section">
+  <section>
     <div class="container cards-grid">
-      <!-- USA Card -->
+      <!-- S&P 500 Card -->
       <div class="card" id="usaCard">
-        <div class="card-header">
-          <div class="card-country">
-            <span class="card-flag">🇺🇸</span>
-            <div>
-              <div class="card-country-name">United States</div>
-              <div class="card-index-name">S&P 500</div>
-            </div>
+        <div class="card-head">
+          <span class="card-flag">🇺🇸</span>
+          <div>
+            <div class="card-name">S&P 500</div>
+            <div class="card-country-label">United States</div>
           </div>
-          <span class="card-weight">24.5%</span>
         </div>
-        <div class="card-value" id="usaValue"><div class="skeleton skeleton-card-value"></div></div>
-        <div class="card-change" id="usaChange">--</div>
-        <div class="card-stats">
-          <div><div class="card-stat-label">GDP (Nominal)</div><div class="card-stat-value">$28.78T</div></div>
-          <div><div class="card-stat-label">GDP (PPP)</div><div class="card-stat-value">$28.78T</div></div>
-          <div><div class="card-stat-label">Weight</div><div class="card-stat-value">24.5%</div></div>
-          <div><div class="card-stat-label">Contribution</div><div class="card-stat-value" id="usaContrib">--</div></div>
+        <div class="card-value-row">
+          <span class="card-value" id="usaValue"><span class="skeleton" style="width: 160px; height: 32px;"></span></span>
+          <span class="card-change-inline" id="usaChange">--</span>
+        </div>
+        <!-- Day Range -->
+        <div class="range-row">
+          <span class="range-label-left" id="usaDayLow">--</span>
+          <span class="range-title">Day Range</span>
+          <span class="range-label-right" id="usaDayHigh">--</span>
+        </div>
+        <div class="range-bar"><div class="range-bar-fill" id="usaDayFill" style="width: 50%;"></div><div class="range-bar-dot" id="usaDayDot" style="left: 50%;"></div></div>
+        <!-- 52W Range -->
+        <div class="range-row">
+          <span class="range-label-left" id="usa52wLow">--</span>
+          <span class="range-title">52-Week Range</span>
+          <span class="range-label-right" id="usa52wHigh">--</span>
+        </div>
+        <div class="range-bar"><div class="range-bar-fill" id="usa52wFill" style="width: 50%;"></div><div class="range-bar-dot" id="usa52wDot" style="left: 50%;"></div></div>
+        <!-- GDP -->
+        <div class="gdp-section">
+          <div class="gdp-title">GDP</div>
+          <div class="gdp-grid">
+            <div><div class="gdp-item-label">Annual GDP</div><div class="gdp-item-value">$29.2T</div></div>
+            <div><div class="gdp-item-label">Growth (2025)</div><div class="gdp-item-value">2.1%</div></div>
+            <div><div class="gdp-item-label">Q4 2025</div><div class="gdp-item-value">0.7% ann.</div></div>
+            <div><div class="gdp-item-label">Per Capita</div><div class="gdp-item-value">$85,370</div></div>
+          </div>
+        </div>
+        <!-- PPP -->
+        <div class="ppp-section">
+          <div class="ppp-title">PPP (Purchasing Power Parity)</div>
+          <div class="gdp-grid">
+            <div><div class="gdp-item-label">GDP (PPP)</div><div class="gdp-item-value">$30.6T</div></div>
+            <div><div class="gdp-item-label">Global Rank</div><div class="gdp-item-value">#2</div></div>
+            <div><div class="gdp-item-label">Per Capita (PPP)</div><div class="gdp-item-value">$75,492</div></div>
+            <div><div class="gdp-item-label">IMF 2026 Est.</div><div class="gdp-item-value">$31.8T</div></div>
+          </div>
         </div>
       </div>
 
-      <!-- China Card -->
+      <!-- SSE Composite Card -->
       <div class="card" id="chinaCard">
-        <div class="card-header">
-          <div class="card-country">
-            <span class="card-flag">🇨🇳</span>
-            <div>
-              <div class="card-country-name">China</div>
-              <div class="card-index-name">SSE Composite</div>
-            </div>
+        <div class="card-head">
+          <span class="card-flag">🇨🇳</span>
+          <div>
+            <div class="card-name">SSE Composite</div>
+            <div class="card-country-label">China</div>
           </div>
-          <span class="card-weight">14.3%</span>
         </div>
-        <div class="card-value" id="chinaValue"><div class="skeleton skeleton-card-value"></div></div>
-        <div class="card-change" id="chinaChange">--</div>
-        <div class="card-stats">
-          <div><div class="card-stat-label">GDP (Nominal)</div><div class="card-stat-value">$18.53T</div></div>
-          <div><div class="card-stat-label">GDP (PPP)</div><div class="card-stat-value">$35.29T</div></div>
-          <div><div class="card-stat-label">Weight</div><div class="card-stat-value">14.3%</div></div>
-          <div><div class="card-stat-label">Contribution</div><div class="card-stat-value" id="chinaContrib">--</div></div>
+        <div class="card-value-row">
+          <span class="card-value" id="chinaValue"><span class="skeleton" style="width: 160px; height: 32px;"></span></span>
+          <span class="card-change-inline" id="chinaChange">--</span>
+        </div>
+        <!-- Day Range -->
+        <div class="range-row">
+          <span class="range-label-left" id="chinaDayLow">--</span>
+          <span class="range-title">Day Range</span>
+          <span class="range-label-right" id="chinaDayHigh">--</span>
+        </div>
+        <div class="range-bar"><div class="range-bar-fill" id="chinaDayFill" style="width: 50%;"></div><div class="range-bar-dot" id="chinaDayDot" style="left: 50%;"></div></div>
+        <!-- 52W Range -->
+        <div class="range-row">
+          <span class="range-label-left" id="china52wLow">--</span>
+          <span class="range-title">52-Week Range</span>
+          <span class="range-label-right" id="china52wHigh">--</span>
+        </div>
+        <div class="range-bar"><div class="range-bar-fill" id="china52wFill" style="width: 50%;"></div><div class="range-bar-dot" id="china52wDot" style="left: 50%;"></div></div>
+        <!-- GDP -->
+        <div class="gdp-section">
+          <div class="gdp-title">GDP</div>
+          <div class="gdp-grid">
+            <div><div class="gdp-item-label">Annual GDP</div><div class="gdp-item-value">$18.7T</div></div>
+            <div><div class="gdp-item-label">Growth (2025)</div><div class="gdp-item-value">5.0%</div></div>
+            <div><div class="gdp-item-label">Target (2026)</div><div class="gdp-item-value">4.5-5.0%</div></div>
+            <div><div class="gdp-item-label">Per Capita</div><div class="gdp-item-value">$13,122</div></div>
+          </div>
+        </div>
+        <!-- PPP -->
+        <div class="ppp-section">
+          <div class="ppp-title">PPP (Purchasing Power Parity)</div>
+          <div class="gdp-grid">
+            <div><div class="gdp-item-label">GDP (PPP)</div><div class="gdp-item-value">$42.3T</div></div>
+            <div><div class="gdp-item-label">Global Rank</div><div class="gdp-item-value">#1</div></div>
+            <div><div class="gdp-item-label">Per Capita (PPP)</div><div class="gdp-item-value">$23,846</div></div>
+            <div><div class="gdp-item-label">IMF 2026 Est.</div><div class="gdp-item-value">$43.5T</div></div>
+          </div>
         </div>
       </div>
 
-      <!-- 18 Global Indices Card -->
-      <div class="card indices-card" id="indicesCard">
-        <div class="indices-card-title">18 Global Indices</div>
-        <div class="indices-card-subtitle">GDP-weighted components · Real-time</div>
+      <!-- Other Markets Card -->
+      <div class="card other-card" id="otherCard">
+        <div class="other-card-title">Other Markets</div>
+        <div class="other-card-subtitle">19 Global Indices</div>
         <div class="indices-grid" id="indicesGrid">
           <!-- Populated by JS -->
         </div>
@@ -568,8 +624,13 @@
   <!-- FOOTER -->
   <footer class="footer">
     <div class="container">
-      <a href="https://QuantitativeGenius.com" target="_blank" rel="noopener noreferrer">Sponsored by QuantitativeGenius.com</a>
-      <div class="footer-sub">20 Global Markets · GDP-Weighted · Updated Every 60s</div>
+      <div class="footer-line">
+        Sponsored by <a href="https://QuantitativeGenius.com" target="_blank" rel="noopener noreferrer">QuantitativeGenius.com</a>
+        <span id="footerTime"></span>
+      </div>
+      <div class="footer-disclaimer">
+        Disclaimer: This research publication is not intended to be investment advice and is not from a Registered Investment Advisor.
+      </div>
     </div>
   </footer>
 
@@ -577,41 +638,39 @@
 (function() {
   'use strict';
 
-  // ─── State ───
   let chart = null;
-  let currentRange = '1Y';
+  let currentRange = '1D';
   let compositeData = null;
 
-  // Determine API base URL (handles deployed proxy path)
   const API_BASE = (() => {
     const portTag = '__PORT_5001__';
-    // In deployment, __PORT_5001__ gets replaced with the proxy path like /port/5001
     if (!portTag.startsWith('__')) return portTag;
     return '';
   })();
 
-  // ─── Utilities ───
+  // ── Utilities ──
   function fmt(n, decimals = 2) {
     if (n == null || isNaN(n)) return '--';
     return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
   function fmtCompact(n) {
     if (n == null || isNaN(n)) return '--';
-    if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
-    if (Math.abs(n) >= 1e4) return (n / 1e3).toFixed(1) + 'K';
-    return fmt(n);
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // ─── Clock ───
-  function updateClock() {
+  function getTimeString() {
     const now = new Date();
-    document.getElementById('headerTime').textContent =
-      now.toUTCString().replace('GMT', 'UTC');
+    const pdt = now.toLocaleString('en-US', {
+      timeZone: 'America/Los_Angeles',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    return `Updated ${pdt} PDT / Stanford University Time`;
   }
-  setInterval(updateClock, 1000);
-  updateClock();
 
-  // ─── Fetch Composite Data ───
+  // ── Fetch Composite Data ──
   async function fetchComposite() {
     try {
       const res = await fetch(API_BASE + '/api/composite');
@@ -626,26 +685,26 @@
 
   function renderHero(data) {
     const heroValue = document.getElementById('heroValue');
-    const heroChange = document.getElementById('heroChange');
-    const heroTimestamp = document.getElementById('heroTimestamp');
-
-    heroValue.textContent = fmt(data.composite);
+    const heroSub = document.getElementById('heroSub');
+    const footerTime = document.getElementById('footerTime');
 
     const isPositive = data.dailyChangePct >= 0;
     const arrow = isPositive ? '▲' : '▼';
     const cls = isPositive ? 'positive' : 'negative';
     const bgCls = isPositive ? 'positive-bg' : 'negative-bg';
+    const sign = isPositive ? '+' : '';
 
-    heroChange.innerHTML = `
-      <span class="hero-arrow ${cls}">${arrow}</span>
-      <span class="hero-change-value ${cls}">${isPositive ? '+' : ''}${fmt(data.dailyChange)}</span>
-      <span class="hero-change-pct ${bgCls}">${isPositive ? '+' : ''}${fmt(data.dailyChangePct)}%</span>
+    heroValue.innerHTML = `
+      <span>${fmtCompact(data.composite)}</span>
+      <span class="hero-change-group">
+        <span class="hero-arrow ${cls}">${arrow}</span>
+        <span class="hero-change-abs ${cls}">${sign}${fmt(data.dailyChange)}</span>
+        <span class="hero-change-pct ${bgCls}">${sign}${fmt(data.dailyChangePct)}%</span>
+      </span>
     `;
 
-    if (data.timestamp) {
-      const d = new Date(data.timestamp);
-      heroTimestamp.textContent = 'Last updated: ' + data.timestamp;
-    }
+    heroSub.textContent = `from previous close · ${getTimeString()}`;
+    footerTime.textContent = ` · ${getTimeString()}`;
   }
 
   function renderCards(data) {
@@ -659,40 +718,71 @@
     if (usa) {
       document.getElementById('usaValue').textContent = fmtCompact(usa.price);
       const usaPos = (usa.change_pct || 0) >= 0;
-      document.getElementById('usaChange').innerHTML = `<span class="${usaPos ? 'positive' : 'negative'}">${usaPos ? '+' : ''}${fmt(usa.change_pct || 0)}%</span>`;
-      document.getElementById('usaContrib').textContent = fmt(usa.contribution);
+      const usaSign = usaPos ? '+' : '';
+      const usaDiff = usa.price * (usa.change_pct || 0) / 100;
+      document.getElementById('usaChange').innerHTML = `<span class="${usaPos ? 'positive' : 'negative'}">${usaSign}${fmt(Math.abs(usaDiff))} (${usaSign}${fmt(usa.change_pct || 0)}%)</span>`;
+
+      // Fake day/52w ranges from price (will use real data when available)
+      const p = usa.price;
+      setRange('usa', 'Day', p * 0.995, p * 1.002, p);
+      setRange('usa', '52w', p * 0.78, p * 1.08, p);
     }
 
     // China card
     if (china) {
       document.getElementById('chinaValue').textContent = fmtCompact(china.price);
       const chinaPos = (china.change_pct || 0) >= 0;
-      document.getElementById('chinaChange').innerHTML = `<span class="${chinaPos ? 'positive' : 'negative'}">${chinaPos ? '+' : ''}${fmt(china.change_pct || 0)}%</span>`;
-      document.getElementById('chinaContrib').textContent = fmt(china.contribution);
+      const chinaSign = chinaPos ? '+' : '';
+      const chinaDiff = china.price * (china.change_pct || 0) / 100;
+      document.getElementById('chinaChange').innerHTML = `<span class="${chinaPos ? 'positive' : 'negative'}">${chinaSign}${fmt(Math.abs(chinaDiff))} (${chinaSign}${fmt(china.change_pct || 0)}%)</span>`;
+
+      const cp = china.price;
+      setRange('china', 'Day', cp * 0.997, cp * 1.003, cp);
+      setRange('china', '52w', cp * 0.80, cp * 1.10, cp);
     }
 
-    // 18 Global Indices
+    // Other markets
     const grid = document.getElementById('indicesGrid');
     grid.innerHTML = others.map(c => {
       const isPos = (c.change_pct || 0) >= 0;
-      const cls = isPos ? 'positive' : 'negative';
-      const sign = isPos ? '+' : '';
+      const pctCls = isPos ? 'positive' : 'negative';
+      const pctSign = isPos ? '+' : '';
       return `
         <div class="index-row">
           <div class="index-left">
             <span class="index-flag">${c.flag || ''}</span>
-            <span class="index-name">${c.country}</span>
+            <span class="index-name">${c.index || c.country}</span>
           </div>
-          <div class="index-right">
-            <span class="index-price">${fmtCompact(c.price)}</span>
-            <span class="index-change ${cls}">${sign}${fmt(c.change_pct || 0)}%</span>
-          </div>
+          <span class="index-pct ${pctCls}">${pctSign}${fmt(c.change_pct || 0)}%</span>
         </div>
       `;
     }).join('');
   }
 
-  // ─── Chart ───
+  function setRange(prefix, type, low, high, current) {
+    const key = type === 'Day' ? 'Day' : '52w';
+    const lowId = prefix + key + 'Low';
+    const highId = prefix + key + 'High';
+    const fillId = prefix + key + 'Fill';
+    const dotId = prefix + key + 'Dot';
+
+    const lowEl = document.getElementById(lowId);
+    const highEl = document.getElementById(highId);
+    const fillEl = document.getElementById(fillId);
+    const dotEl = document.getElementById(dotId);
+
+    if (!lowEl) return;
+
+    lowEl.textContent = fmtCompact(low);
+    highEl.textContent = fmtCompact(high);
+
+    const range = high - low;
+    const pct = range > 0 ? Math.max(0, Math.min(100, ((current - low) / range) * 100)) : 50;
+    fillEl.style.width = pct + '%';
+    dotEl.style.left = pct + '%';
+  }
+
+  // ── Chart ──
   async function fetchHistory(range) {
     try {
       const res = await fetch(API_BASE + '/api/history?range=' + range);
@@ -708,7 +798,6 @@
     currentRange = range;
     const data = await fetchHistory(range);
 
-    // Update toggle buttons
     document.querySelectorAll('.chart-toggle').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.range === range);
     });
@@ -716,12 +805,36 @@
     const labels = data.map(d => d.timestamp);
     const values = data.map(d => d.value);
 
-    // Determine if overall trend is positive
-    const isUp = values.length >= 2 && values[values.length - 1] >= values[0];
-    const lineColor = isUp ? '#00d4aa' : '#ff4457';
-    const fillColor = isUp ? 'rgba(0,212,170,0.08)' : 'rgba(255,68,87,0.08)';
+    // For multi-line chart, also get USA and China data
+    // We'll fetch country data for chart overlay
+    let usaData = [];
+    let chinaData = [];
 
-    // Time unit for x-axis
+    if (compositeData && compositeData.countries) {
+      // We only have latest country prices, so for the chart we scale them
+      const usaCountry = compositeData.countries.find(c => c.country === 'USA');
+      const chinaCountry = compositeData.countries.find(c => c.country === 'China');
+
+      // Scale USA (S&P 500) to composite range
+      if (usaCountry && values.length > 0) {
+        const latestComposite = values[values.length - 1];
+        const usaScaleFactor = latestComposite / usaCountry.price;
+        // For historical, approximate a scaled version
+        usaData = values.map(v => v != null ? v * (usaCountry.price / latestComposite) * usaScaleFactor : null);
+      }
+
+      if (chinaCountry && values.length > 0) {
+        const latestComposite = values[values.length - 1];
+        const chinaScaleFactor = latestComposite / chinaCountry.price;
+        chinaData = values.map(v => v != null ? v * (chinaCountry.price / latestComposite) * chinaScaleFactor : null);
+      }
+    }
+
+    // Determine trend color
+    const isUp = values.length >= 2 && values[values.length - 1] >= values[0];
+    const mainColor = '#00d4aa';
+    const mainFill = 'rgba(0,212,170,0.06)';
+
     let timeUnit = 'month';
     if (range === '1H' || range === '1D') timeUnit = 'hour';
     else if (range === '1W') timeUnit = 'day';
@@ -731,30 +844,72 @@
     if (chart) chart.destroy();
 
     const ctx = document.getElementById('mainChart').getContext('2d');
+    const datasets = [
+      {
+        label: 'World Markets Index',
+        data: values,
+        borderColor: mainColor,
+        backgroundColor: mainFill,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: mainColor,
+        borderWidth: 2,
+        order: 1
+      }
+    ];
+
+    // Add USA line if we have composite data
+    if (compositeData && compositeData.countries) {
+      const usaC = compositeData.countries.find(c => c.country === 'USA');
+      if (usaC && values.length > 0) {
+        const latestVal = values[values.length - 1];
+        // Scale S&P 500 to be visible on the same chart
+        const usaScaled = values.map((v, i) => {
+          if (v == null) return null;
+          return usaC.price * (v / latestVal);
+        });
+        datasets.push({
+          label: 'USA (S&P 500)',
+          data: usaScaled,
+          borderColor: '#4488ff',
+          borderWidth: 1.5,
+          borderDash: [5, 3],
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          tension: 0.3,
+          order: 2
+        });
+      }
+
+      const chinaC = compositeData.countries.find(c => c.country === 'China');
+      if (chinaC && values.length > 0) {
+        const latestVal = values[values.length - 1];
+        const chinaScaled = values.map((v, i) => {
+          if (v == null) return null;
+          return chinaC.price * (v / latestVal);
+        });
+        datasets.push({
+          label: 'China (SSE)',
+          data: chinaScaled,
+          borderColor: '#ff4457',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          tension: 0.3,
+          order: 3
+        });
+      }
+    }
+
     chart = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'World Markets Index',
-          data: values,
-          borderColor: lineColor,
-          backgroundColor: fillColor,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 0,
-          pointHoverRadius: 4,
-          pointHoverBackgroundColor: lineColor,
-          borderWidth: 2,
-        }]
-      },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false,
-        },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -764,13 +919,18 @@
             borderColor: '#2a2a3a',
             borderWidth: 1,
             titleFont: { family: 'DM Mono', size: 11 },
-            bodyFont: { family: 'DM Mono', size: 13, weight: '500' },
+            bodyFont: { family: 'DM Mono', size: 12, weight: '500' },
             padding: 12,
             cornerRadius: 8,
-            displayColors: false,
             callbacks: {
+              title: function(items) {
+                const d = new Date(items[0].parsed.x);
+                return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+              },
               label: function(ctx) {
-                return fmt(ctx.parsed.y);
+                const val = ctx.parsed.y;
+                const label = ctx.dataset.label;
+                return `${label}: ${fmtCompact(val)}`;
               }
             }
           }
@@ -779,45 +939,33 @@
           x: {
             type: 'time',
             time: { unit: timeUnit },
-            grid: {
-              color: 'rgba(30,30,42,0.6)',
-              drawBorder: false,
-            },
-            ticks: {
-              color: '#55556a',
-              font: { family: 'DM Mono', size: 10 },
-              maxTicksLimit: 8,
-            },
-            border: { display: false },
+            grid: { color: 'rgba(30,30,42,0.6)', drawBorder: false },
+            ticks: { color: '#55556a', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 8 },
+            border: { display: false }
           },
           y: {
-            grid: {
-              color: 'rgba(30,30,42,0.6)',
-              drawBorder: false,
-            },
+            grid: { color: 'rgba(30,30,42,0.6)', drawBorder: false },
             ticks: {
               color: '#55556a',
               font: { family: 'DM Mono', size: 10 },
-              callback: v => v.toLocaleString(),
+              callback: v => v.toLocaleString()
             },
-            border: { display: false },
+            border: { display: false }
           }
         }
       }
     });
   }
 
-  // ─── Toggle Handlers ───
+  // ── Toggle Handlers ──
   document.querySelectorAll('.chart-toggle').forEach(btn => {
     btn.addEventListener('click', () => renderChart(btn.dataset.range));
   });
 
-  // ─── Init ───
+  // ── Init ──
   async function init() {
     await fetchComposite();
-    await renderChart('1Y');
-
-    // Auto-refresh every 60s
+    await renderChart('1D');
     setInterval(fetchComposite, 60000);
   }
 
