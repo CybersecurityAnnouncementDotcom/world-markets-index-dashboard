@@ -173,7 +173,7 @@ app.get("/api/history", (req, res) => {
           )
           .all(weekAgo);
         break;
-      case "1Y":
+      case "1Y": {
         const yearAgo = new Date(
           now.getFullYear() - 1,
           now.getMonth(),
@@ -183,13 +183,22 @@ app.get("/api/history", (req, res) => {
           .split("T")[0];
         query = db
           .prepare(
-            "SELECT * FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC"
+            `SELECT MIN(timestamp) as timestamp, ROUND(AVG(value), 2) as value
+             FROM readings WHERE timestamp >= ?
+             GROUP BY strftime('%Y-%W', timestamp)
+             ORDER BY timestamp ASC`
           )
           .all(yearAgo);
         break;
+      }
       case "MAX":
         query = db
-          .prepare("SELECT * FROM readings ORDER BY timestamp ASC")
+          .prepare(
+            `SELECT MIN(timestamp) as timestamp, ROUND(AVG(value), 2) as value
+             FROM readings
+             GROUP BY strftime('%Y-%W', timestamp)
+             ORDER BY timestamp ASC`
+          )
           .all();
         break;
       default:
@@ -200,6 +209,55 @@ app.get("/api/history", (req, res) => {
     }
 
     res.json({ range, data: query });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Historical country prices for chart overlay (USA/China)
+app.get("/api/country-history", (req, res) => {
+  try {
+    const range = req.query.range || "MAX";
+    const now = new Date();
+    let dateFilter = '';
+    let dateParam = null;
+
+    switch (range) {
+      case '1W':
+        dateParam = new Date(now - 7*24*60*60*1000).toISOString().split('T')[0];
+        dateFilter = ' AND r.timestamp >= ?';
+        break;
+      case '1Y':
+        dateParam = new Date(now.getFullYear()-1, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+        dateFilter = ' AND r.timestamp >= ?';
+        break;
+      case '1H':
+      case '1D':
+        dateParam = now.toISOString().split('T')[0];
+        dateFilter = ' AND r.timestamp >= ?';
+        break;
+      case 'MAX':
+      default:
+        break;
+    }
+
+    // Get weekly averaged USA and China prices aligned with composite readings
+    const sql = `
+      SELECT MIN(r.timestamp) as timestamp,
+        ROUND(AVG(CASE WHEN cd.country='USA' THEN cd.price END), 2) as usa_price,
+        ROUND(AVG(CASE WHEN cd.country='China' THEN cd.price END), 2) as china_price
+      FROM readings r
+      LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+      WHERE 1=1${dateFilter}
+      GROUP BY strftime('%Y-%W', r.timestamp)
+      ORDER BY timestamp ASC
+    `;
+
+    const rows = dateParam
+      ? db.prepare(sql).all(dateParam)
+      : db.prepare(sql).all();
+
+    res.json({ range, data: rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

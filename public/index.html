@@ -69,7 +69,7 @@
       font-weight: 600;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: var(--gold);
+      color: var(--blue);
     }
 
     /* ═══ HERO ═══ */
@@ -77,10 +77,10 @@
       padding: 8px 0 20px;
     }
     .hero-value {
-      font-family: var(--font-mono);
+      font-family: var(--font-body);
       font-size: clamp(40px, 7vw, 72px);
-      font-weight: 500;
-      letter-spacing: -0.03em;
+      font-weight: 700;
+      letter-spacing: -0.02em;
       line-height: 1;
       color: var(--text);
       display: flex;
@@ -114,10 +114,14 @@
     .positive-bg { background: var(--green-dim); color: var(--green); }
     .negative-bg { background: var(--red-dim); color: var(--red); }
     .hero-sub {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
       margin-top: 8px;
       font-family: var(--font-mono);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 520px;
     }
 
     /* ═══ CHART ═══ */
@@ -456,10 +460,10 @@
   <header class="header">
     <div class="container header-inner">
       <svg class="brand-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="World Markets Index logo">
-        <circle cx="20" cy="20" r="18" stroke="#d4a843" stroke-width="1.5"/>
-        <path d="M9 24 L15 14 L20 20 L25 9 L31 18" stroke="#00d4aa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="15" cy="14" r="2.2" fill="#d4a843"/>
-        <circle cx="25" cy="9" r="2.2" fill="#d4a843"/>
+        <circle cx="20" cy="20" r="18" stroke="#4488ff" stroke-width="1.5"/>
+        <path d="M8 28 L14 22 L20 18 L26 14 L32 8" stroke="#00d4aa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="14" cy="22" r="2.2" fill="#4488ff"/>
+        <circle cx="26" cy="14" r="2.2" fill="#4488ff"/>
       </svg>
       <div class="brand-title">World Markets Index</div>
     </div>
@@ -481,7 +485,7 @@
       <div class="chart-header">
         <div class="chart-toggles">
           <button class="chart-toggle" data-range="1H">1H</button>
-          <button class="chart-toggle active" data-range="1D">1D</button>
+          <button class="chart-toggle" data-range="1D">1D</button>
           <button class="chart-toggle" data-range="1W">1W</button>
           <button class="chart-toggle" data-range="1Y">1Y</button>
           <button class="chart-toggle" data-range="MAX">MAX</button>
@@ -639,7 +643,7 @@
   'use strict';
 
   let chart = null;
-  let currentRange = '1D';
+  let currentRange = 'MAX';
   let compositeData = null;
 
   const API_BASE = (() => {
@@ -805,29 +809,42 @@
     const labels = data.map(d => d.timestamp);
     const values = data.map(d => d.value);
 
-    // For multi-line chart, also get USA and China data
-    // We'll fetch country data for chart overlay
+    // Fetch historical USA (S&P 500) and China (SSE) prices for overlay
+    // Normalize using all-time highs so each market shows independent character
+    const SP500_ATH = 7002;  // S&P 500 all-time high
+    const SSE_ATH = 6124;    // SSE Composite all-time high
     let usaData = [];
     let chinaData = [];
+    let usaRawPrices = [];   // raw dollar prices for tooltip
+    let chinaRawPrices = []; // raw prices for tooltip
 
-    if (compositeData && compositeData.countries) {
-      // We only have latest country prices, so for the chart we scale them
-      const usaCountry = compositeData.countries.find(c => c.country === 'USA');
-      const chinaCountry = compositeData.countries.find(c => c.country === 'China');
-
-      // Scale USA (S&P 500) to composite range
-      if (usaCountry && values.length > 0) {
-        const latestComposite = values[values.length - 1];
-        const usaScaleFactor = latestComposite / usaCountry.price;
-        // For historical, approximate a scaled version
-        usaData = values.map(v => v != null ? v * (usaCountry.price / latestComposite) * usaScaleFactor : null);
-      }
-
-      if (chinaCountry && values.length > 0) {
-        const latestComposite = values[values.length - 1];
-        const chinaScaleFactor = latestComposite / chinaCountry.price;
-        chinaData = values.map(v => v != null ? v * (chinaCountry.price / latestComposite) * chinaScaleFactor : null);
-      }
+    try {
+      const chRes = await fetch(API_BASE + '/api/country-history?range=' + range);
+      const chJson = await chRes.json();
+      const countryHistory = chJson.data || [];
+      // Build a map from timestamp -> { usa_price, china_price }
+      const chMap = {};
+      countryHistory.forEach(r => { chMap[r.timestamp] = r; });
+      usaData = labels.map(ts => {
+        const r = chMap[ts];
+        if (r && r.usa_price != null) return (r.usa_price / SP500_ATH) * 5000;
+        return null;
+      });
+      chinaData = labels.map(ts => {
+        const r = chMap[ts];
+        if (r && r.china_price != null) return (r.china_price / SSE_ATH) * 5000;
+        return null;
+      });
+      usaRawPrices = labels.map(ts => {
+        const r = chMap[ts];
+        return (r && r.usa_price != null) ? r.usa_price : null;
+      });
+      chinaRawPrices = labels.map(ts => {
+        const r = chMap[ts];
+        return (r && r.china_price != null) ? r.china_price : null;
+      });
+    } catch(e) {
+      console.error('Failed to fetch country history:', e);
     }
 
     // Determine trend color
@@ -860,47 +877,35 @@
       }
     ];
 
-    // Add USA line if we have composite data
-    if (compositeData && compositeData.countries) {
-      const usaC = compositeData.countries.find(c => c.country === 'USA');
-      if (usaC && values.length > 0) {
-        const latestVal = values[values.length - 1];
-        // Scale S&P 500 to be visible on the same chart
-        const usaScaled = values.map((v, i) => {
-          if (v == null) return null;
-          return usaC.price * (v / latestVal);
-        });
-        datasets.push({
-          label: 'USA (S&P 500)',
-          data: usaScaled,
-          borderColor: '#4488ff',
-          borderWidth: 1.5,
-          borderDash: [5, 3],
-          pointRadius: 0,
-          pointHoverRadius: 3,
-          tension: 0.3,
-          order: 2
-        });
-      }
+    // Add USA (S&P 500) line — normalized by all-time high
+    if (usaData.length > 0 && usaData.some(v => v != null)) {
+      datasets.push({
+        label: 'USA (S&P 500)',
+        data: usaData,
+        borderColor: '#4488ff',
+        borderWidth: 1.5,
+        borderDash: [5, 3],
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        tension: 0.3,
+        fill: false,
+        order: 2
+      });
+    }
 
-      const chinaC = compositeData.countries.find(c => c.country === 'China');
-      if (chinaC && values.length > 0) {
-        const latestVal = values[values.length - 1];
-        const chinaScaled = values.map((v, i) => {
-          if (v == null) return null;
-          return chinaC.price * (v / latestVal);
-        });
-        datasets.push({
-          label: 'China (SSE)',
-          data: chinaScaled,
-          borderColor: '#ff4457',
-          borderWidth: 1.5,
-          pointRadius: 0,
-          pointHoverRadius: 3,
-          tension: 0.3,
-          order: 3
-        });
-      }
+    // Add China (SSE) line — normalized by all-time high
+    if (chinaData.length > 0 && chinaData.some(v => v != null)) {
+      datasets.push({
+        label: 'China (SSE)',
+        data: chinaData,
+        borderColor: '#ef4444',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        tension: 0.3,
+        fill: false,
+        order: 3
+      });
     }
 
     chart = new Chart(ctx, {
@@ -913,25 +918,48 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1a1a24',
-            titleColor: '#8888a0',
-            bodyColor: '#e8e8ed',
-            borderColor: '#2a2a3a',
-            borderWidth: 1,
-            titleFont: { family: 'DM Mono', size: 11 },
-            bodyFont: { family: 'DM Mono', size: 12, weight: '500' },
-            padding: 12,
-            cornerRadius: 8,
-            callbacks: {
-              title: function(items) {
-                const d = new Date(items[0].parsed.x);
-                return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-              },
-              label: function(ctx) {
-                const val = ctx.parsed.y;
-                const label = ctx.dataset.label;
-                return `${label}: ${fmtCompact(val)}`;
+            enabled: false,
+            external: function(context) {
+              let el = document.getElementById('world-tooltip');
+              if (!el) {
+                el = document.createElement('div');
+                el.id = 'world-tooltip';
+                el.style.cssText = 'position:absolute;pointer-events:none;background:rgba(26,34,54,0.95);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:10px 12px;font-family:DM Mono,monospace;font-size:12px;transition:opacity 0.15s;z-index:100;';
+                document.body.appendChild(el);
               }
+              const tt = context.tooltip;
+              if (tt.opacity === 0) { el.style.opacity = '0'; return; }
+              const idx = tt.dataPoints[0].dataIndex;
+              const d = new Date(tt.dataPoints[0].parsed.x);
+              const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+              const worldVal = context.chart.data.datasets[0].data[idx];
+              let html = `<div style="color:#8888a0;font-size:11px;margin-bottom:4px;font-family:DM Sans,sans-serif">${dateStr}</div>`;
+              html += `<div style="color:#22c55e;font-weight:600">World: ${fmt(worldVal)}</div>`;
+              if (context.chart.data.datasets[1]) {
+                const usaVal = context.chart.data.datasets[1].data[idx];
+                const usaRaw = usaRawPrices[idx];
+                if (usaVal != null) {
+                  let usaLine = `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaVal)}`;
+                  if (usaRaw != null) usaLine += ` <span style="color:#888;font-size:10px">($${usaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
+                  usaLine += `</div>`;
+                  html += usaLine;
+                }
+              }
+              if (context.chart.data.datasets[2]) {
+                const chinaVal = context.chart.data.datasets[2].data[idx];
+                const chinaRaw = chinaRawPrices[idx];
+                if (chinaVal != null) {
+                  let chinaLine = `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaVal)}`;
+                  if (chinaRaw != null) chinaLine += ` <span style="color:#888;font-size:10px">(${chinaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
+                  chinaLine += `</div>`;
+                  html += chinaLine;
+                }
+              }
+              el.innerHTML = html;
+              el.style.opacity = '1';
+              const pos = context.chart.canvas.getBoundingClientRect();
+              el.style.left = pos.left + window.scrollX + tt.caretX + 12 + 'px';
+              el.style.top = pos.top + window.scrollY + tt.caretY - 20 + 'px';
             }
           }
         },
@@ -965,7 +993,7 @@
   // ── Init ──
   async function init() {
     await fetchComposite();
-    await renderChart('1D');
+    await renderChart('MAX');
     setInterval(fetchComposite, 60000);
   }
 
