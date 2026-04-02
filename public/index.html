@@ -380,7 +380,33 @@
       gap: 6px;
       min-width: 0;
     }
-    .index-flag { font-size: 0.85rem; flex-shrink: 0; cursor: default; }
+    .index-flag { font-size: 0.85rem; flex-shrink: 0; cursor: default; position: relative; }
+    .index-flag .flag-tooltip {
+      display: none;
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 6px);
+      transform: translateX(-50%);
+      background: rgba(20, 20, 30, 0.97);
+      border: 1px solid var(--border-bright);
+      border-radius: 6px;
+      padding: 5px 9px;
+      white-space: nowrap;
+      z-index: 200;
+      pointer-events: none;
+      font-family: var(--font-body);
+      font-size: 0.72rem;
+      line-height: 1.4;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .index-flag .flag-tooltip .ft-country {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .index-flag .flag-tooltip .ft-index {
+      color: var(--text-secondary);
+    }
+    .index-flag:hover .flag-tooltip { display: block; }
     .index-name {
       font-size: 0.73rem;
       font-weight: 500;
@@ -743,17 +769,18 @@
       setRange('china', '52w', cp * 0.80, cp * 1.10, cp);
     }
 
-    // Other markets — Issue 5 fix: add title attribute to index-flag span
+    // Other markets — tooltip shows country name and index name on flag hover
     const grid = document.getElementById('indicesGrid');
     grid.innerHTML = others.map(c => {
       const isPos = (c.change_pct || 0) >= 0;
       const pctCls = isPos ? 'positive' : 'negative';
       const pctSign = isPos ? '+' : '';
+      const indexName = c.index || c.ticker || '';
       return `
         <div class="index-row">
           <div class="index-left">
-            <span class="index-flag" title="${c.country}">${c.flag || ''}</span>
-            <span class="index-name">${c.index || c.country}</span>
+            <span class="index-flag">${c.flag || ''}<span class="flag-tooltip"><span class="ft-country">${c.country}</span><br><span class="ft-index">${indexName}</span></span></span>
+            <span class="index-name">${indexName || c.country}</span>
           </div>
           <span class="index-pct ${pctCls}">${pctSign}${fmt(c.change_pct || 0)}%</span>
         </div>
@@ -808,13 +835,9 @@
     const values = data.map(d => d.value);
 
     // Fetch historical USA (S&P 500) and China (SSE) prices for overlay
-    // Normalize using all-time highs so each market shows independent character
-    const SP500_ATH = 7002;  // S&P 500 all-time high
-    const SSE_ATH = 6124;    // SSE Composite all-time high
+    // Display raw DB prices as-is so all three lines share the same scale
     let usaData = [];
     let chinaData = [];
-    let usaRawPrices = [];   // raw dollar prices for tooltip
-    let chinaRawPrices = []; // raw prices for tooltip
 
     try {
       const chRes = await fetch(API_BASE + '/api/country-history?range=' + range);
@@ -825,19 +848,9 @@
       countryHistory.forEach(r => { chMap[r.timestamp] = r; });
       usaData = labels.map(ts => {
         const r = chMap[ts];
-        if (r && r.usa_price != null) return (r.usa_price / SP500_ATH) * 5000;
-        return null;
-      });
-      chinaData = labels.map(ts => {
-        const r = chMap[ts];
-        if (r && r.china_price != null) return (r.china_price / SSE_ATH) * 5000;
-        return null;
-      });
-      usaRawPrices = labels.map(ts => {
-        const r = chMap[ts];
         return (r && r.usa_price != null) ? r.usa_price : null;
       });
-      chinaRawPrices = labels.map(ts => {
+      chinaData = labels.map(ts => {
         const r = chMap[ts];
         return (r && r.china_price != null) ? r.china_price : null;
       });
@@ -874,6 +887,7 @@
         pointHoverRadius: 4,
         pointHoverBackgroundColor: mainColor,
         borderWidth: 2,
+        borderDash: [],
         order: 1
       },
       {
@@ -881,6 +895,7 @@
         data: usaData,
         borderColor: '#4488ff',
         borderWidth: 1.5,
+        borderDash: [],
         pointRadius: 0,
         pointHoverRadius: 3,
         tension: 0.3,
@@ -892,6 +907,7 @@
         data: chinaData,
         borderColor: '#ef4444',
         borderWidth: 1.5,
+        borderDash: [],
         pointRadius: 0,
         pointHoverRadius: 3,
         tension: 0.3,
@@ -927,22 +943,14 @@
               const worldVal = context.chart.data.datasets[0].data[idx];
               let html = `<div style="color:#8888a0;font-size:11px;margin-bottom:4px;font-family:DM Sans,sans-serif">${dateStr}</div>`;
               html += `<div style="color:#00d4aa;font-weight:600">World: ${fmt(worldVal)}</div>`;
-              // Issue 4 fix: always reference dataset indices 1 and 2 since they're always present
+              // Always reference dataset indices 1 and 2 since they're always present
               const usaVal = context.chart.data.datasets[1] ? context.chart.data.datasets[1].data[idx] : null;
-              const usaRaw = usaRawPrices[idx];
               if (usaVal != null) {
-                let usaLine = `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaVal)}`;
-                if (usaRaw != null) usaLine += ` <span style="color:#888;font-size:10px">($${usaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
-                usaLine += `</div>`;
-                html += usaLine;
+                html += `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaVal)}</div>`;
               }
               const chinaVal = context.chart.data.datasets[2] ? context.chart.data.datasets[2].data[idx] : null;
-              const chinaRaw = chinaRawPrices[idx];
               if (chinaVal != null) {
-                let chinaLine = `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaVal)}`;
-                if (chinaRaw != null) chinaLine += ` <span style="color:#888;font-size:10px">(${chinaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
-                chinaLine += `</div>`;
-                html += chinaLine;
+                html += `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaVal)}</div>`;
               }
               el.innerHTML = html;
               el.style.opacity = '1';
