@@ -195,10 +195,6 @@
       height: 2px;
       border-radius: 1px;
     }
-    .legend-line.dashed {
-      background: none !important;
-      border-top: 2px dashed;
-    }
 
     /* ═══ CARDS ═══ */
     .cards-grid {
@@ -384,7 +380,7 @@
       gap: 6px;
       min-width: 0;
     }
-    .index-flag { font-size: 0.85rem; flex-shrink: 0; }
+    .index-flag { font-size: 0.85rem; flex-shrink: 0; cursor: default; }
     .index-name {
       font-size: 0.73rem;
       font-weight: 500;
@@ -459,9 +455,10 @@
   <!-- HEADER -->
   <header class="header">
     <div class="container header-inner">
+      <!-- Issue 3 fix: sawtooth SVG path with zigzag trending upward -->
       <svg class="brand-logo" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="World Markets Index logo">
         <circle cx="20" cy="20" r="18" stroke="#4488ff" stroke-width="1.5"/>
-        <path d="M8 28 L14 22 L20 18 L26 14 L32 8" stroke="#00d4aa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6 26 L10 24 L13 27 L16 22 L19 25 L22 18 L25 21 L28 14 L31 10 L34 8" stroke="#00d4aa" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
         <circle cx="14" cy="22" r="2.2" fill="#4488ff"/>
         <circle cx="26" cy="14" r="2.2" fill="#4488ff"/>
       </svg>
@@ -495,13 +492,14 @@
         <div class="chart-canvas-wrap">
           <canvas id="mainChart"></canvas>
         </div>
+        <!-- Issue 2 fix: removed "dashed" class from USA legend-line -->
         <div class="chart-legend">
           <div class="legend-item">
             <span class="legend-line" style="background: #00d4aa;"></span>
             World Markets Index
           </div>
           <div class="legend-item">
-            <span class="legend-line dashed" style="border-color: #4488ff;"></span>
+            <span class="legend-line" style="background: #4488ff;"></span>
             USA (S&P 500)
           </div>
           <div class="legend-item">
@@ -745,7 +743,7 @@
       setRange('china', '52w', cp * 0.80, cp * 1.10, cp);
     }
 
-    // Other markets
+    // Other markets — Issue 5 fix: add title attribute to index-flag span
     const grid = document.getElementById('indicesGrid');
     grid.innerHTML = others.map(c => {
       const isPos = (c.change_pct || 0) >= 0;
@@ -754,7 +752,7 @@
       return `
         <div class="index-row">
           <div class="index-left">
-            <span class="index-flag">${c.flag || ''}</span>
+            <span class="index-flag" title="${c.country}">${c.flag || ''}</span>
             <span class="index-name">${c.index || c.country}</span>
           </div>
           <span class="index-pct ${pctCls}">${pctSign}${fmt(c.change_pct || 0)}%</span>
@@ -861,6 +859,9 @@
     if (chart) chart.destroy();
 
     const ctx = document.getElementById('mainChart').getContext('2d');
+
+    // Issue 4 fix: always include USA and China datasets (not conditional on data presence)
+    // Issue 2 fix: removed borderDash from USA dataset
     const datasets = [
       {
         label: 'World Markets Index',
@@ -874,28 +875,19 @@
         pointHoverBackgroundColor: mainColor,
         borderWidth: 2,
         order: 1
-      }
-    ];
-
-    // Add USA (S&P 500) line — normalized by all-time high
-    if (usaData.length > 0 && usaData.some(v => v != null)) {
-      datasets.push({
+      },
+      {
         label: 'USA (S&P 500)',
         data: usaData,
         borderColor: '#4488ff',
         borderWidth: 1.5,
-        borderDash: [5, 3],
         pointRadius: 0,
         pointHoverRadius: 3,
         tension: 0.3,
         fill: false,
         order: 2
-      });
-    }
-
-    // Add China (SSE) line — normalized by all-time high
-    if (chinaData.length > 0 && chinaData.some(v => v != null)) {
-      datasets.push({
+      },
+      {
         label: 'China (SSE)',
         data: chinaData,
         borderColor: '#ef4444',
@@ -905,8 +897,8 @@
         tension: 0.3,
         fill: false,
         order: 3
-      });
-    }
+      }
+    ];
 
     chart = new Chart(ctx, {
       type: 'line',
@@ -934,26 +926,23 @@
               const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
               const worldVal = context.chart.data.datasets[0].data[idx];
               let html = `<div style="color:#8888a0;font-size:11px;margin-bottom:4px;font-family:DM Sans,sans-serif">${dateStr}</div>`;
-              html += `<div style="color:#22c55e;font-weight:600">World: ${fmt(worldVal)}</div>`;
-              if (context.chart.data.datasets[1]) {
-                const usaVal = context.chart.data.datasets[1].data[idx];
-                const usaRaw = usaRawPrices[idx];
-                if (usaVal != null) {
-                  let usaLine = `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaVal)}`;
-                  if (usaRaw != null) usaLine += ` <span style="color:#888;font-size:10px">($${usaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
-                  usaLine += `</div>`;
-                  html += usaLine;
-                }
+              html += `<div style="color:#00d4aa;font-weight:600">World: ${fmt(worldVal)}</div>`;
+              // Issue 4 fix: always reference dataset indices 1 and 2 since they're always present
+              const usaVal = context.chart.data.datasets[1] ? context.chart.data.datasets[1].data[idx] : null;
+              const usaRaw = usaRawPrices[idx];
+              if (usaVal != null) {
+                let usaLine = `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaVal)}`;
+                if (usaRaw != null) usaLine += ` <span style="color:#888;font-size:10px">($${usaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
+                usaLine += `</div>`;
+                html += usaLine;
               }
-              if (context.chart.data.datasets[2]) {
-                const chinaVal = context.chart.data.datasets[2].data[idx];
-                const chinaRaw = chinaRawPrices[idx];
-                if (chinaVal != null) {
-                  let chinaLine = `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaVal)}`;
-                  if (chinaRaw != null) chinaLine += ` <span style="color:#888;font-size:10px">(${chinaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
-                  chinaLine += `</div>`;
-                  html += chinaLine;
-                }
+              const chinaVal = context.chart.data.datasets[2] ? context.chart.data.datasets[2].data[idx] : null;
+              const chinaRaw = chinaRawPrices[idx];
+              if (chinaVal != null) {
+                let chinaLine = `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaVal)}`;
+                if (chinaRaw != null) chinaLine += ` <span style="color:#888;font-size:10px">(${chinaRaw.toLocaleString(undefined,{maximumFractionDigits:0})})</span>`;
+                chinaLine += `</div>`;
+                html += chinaLine;
               }
               el.innerHTML = html;
               el.style.opacity = '1';
@@ -972,6 +961,8 @@
             border: { display: false }
           },
           y: {
+            // Issue 1 fix: auto-scale to data range by not setting a fixed min/max
+            // Chart.js will auto-scale based on actual data values
             grid: { color: 'rgba(30,30,42,0.6)', drawBorder: false },
             ticks: {
               color: '#55556a',

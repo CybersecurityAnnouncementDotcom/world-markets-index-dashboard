@@ -215,47 +215,90 @@ app.get("/api/history", (req, res) => {
 });
 
 // API: Historical country prices for chart overlay (USA/China)
+// Issue 4 fix: use raw (ungrouped) data for 1H/1D/1W; weekly averages only for 1Y/MAX
 app.get("/api/country-history", (req, res) => {
   try {
     const range = req.query.range || "MAX";
     const now = new Date();
-    let dateFilter = '';
-    let dateParam = null;
+    let rows;
 
-    switch (range) {
-      case '1W':
-        dateParam = new Date(now - 7*24*60*60*1000).toISOString().split('T')[0];
-        dateFilter = ' AND r.timestamp >= ?';
-        break;
-      case '1Y':
-        dateParam = new Date(now.getFullYear()-1, now.getMonth(), now.getDate()).toISOString().split('T')[0];
-        dateFilter = ' AND r.timestamp >= ?';
-        break;
-      case '1H':
-      case '1D':
-        dateParam = now.toISOString().split('T')[0];
-        dateFilter = ' AND r.timestamp >= ?';
-        break;
-      case 'MAX':
-      default:
-        break;
+    if (range === '1H') {
+      // Last 60 raw readings aligned with composite
+      rows = db.prepare(`
+        SELECT r.timestamp,
+          MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
+          MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
+        FROM (SELECT * FROM readings ORDER BY timestamp DESC LIMIT 60) r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        GROUP BY r.timestamp
+        ORDER BY r.timestamp ASC
+      `).all();
+
+    } else if (range === '1D') {
+      // Today's raw readings (or last 10 if no intraday data)
+      const today = now.toISOString().split('T')[0];
+      rows = db.prepare(`
+        SELECT r.timestamp,
+          MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
+          MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
+        FROM readings r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        WHERE r.timestamp >= ?
+        GROUP BY r.timestamp
+        ORDER BY r.timestamp ASC
+      `).all(today);
+      if (rows.length < 2) {
+        rows = db.prepare(`
+          SELECT r.timestamp,
+            MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
+            MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
+          FROM (SELECT * FROM readings ORDER BY timestamp DESC LIMIT 10) r
+          LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+          GROUP BY r.timestamp
+          ORDER BY r.timestamp ASC
+        `).all();
+      }
+
+    } else if (range === '1W') {
+      // Raw readings from the past 7 days
+      const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      rows = db.prepare(`
+        SELECT r.timestamp,
+          MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
+          MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
+        FROM readings r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        WHERE r.timestamp >= ?
+        GROUP BY r.timestamp
+        ORDER BY r.timestamp ASC
+      `).all(weekAgo);
+
+    } else if (range === '1Y') {
+      // Weekly averages for past year
+      const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+      rows = db.prepare(`
+        SELECT MIN(r.timestamp) as timestamp,
+          ROUND(AVG(CASE WHEN cd.country='USA' THEN cd.price END), 2) as usa_price,
+          ROUND(AVG(CASE WHEN cd.country='China' THEN cd.price END), 2) as china_price
+        FROM readings r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        WHERE r.timestamp >= ?
+        GROUP BY strftime('%Y-%W', r.timestamp)
+        ORDER BY timestamp ASC
+      `).all(yearAgo);
+
+    } else {
+      // MAX: weekly averages across all data
+      rows = db.prepare(`
+        SELECT MIN(r.timestamp) as timestamp,
+          ROUND(AVG(CASE WHEN cd.country='USA' THEN cd.price END), 2) as usa_price,
+          ROUND(AVG(CASE WHEN cd.country='China' THEN cd.price END), 2) as china_price
+        FROM readings r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        GROUP BY strftime('%Y-%W', r.timestamp)
+        ORDER BY timestamp ASC
+      `).all();
     }
-
-    // Get weekly averaged USA and China prices aligned with composite readings
-    const sql = `
-      SELECT MIN(r.timestamp) as timestamp,
-        ROUND(AVG(CASE WHEN cd.country='USA' THEN cd.price END), 2) as usa_price,
-        ROUND(AVG(CASE WHEN cd.country='China' THEN cd.price END), 2) as china_price
-      FROM readings r
-      LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
-      WHERE 1=1${dateFilter}
-      GROUP BY strftime('%Y-%W', r.timestamp)
-      ORDER BY timestamp ASC
-    `;
-
-    const rows = dateParam
-      ? db.prepare(sql).all(dateParam)
-      : db.prepare(sql).all();
 
     res.json({ range, data: rows });
   } catch (err) {
