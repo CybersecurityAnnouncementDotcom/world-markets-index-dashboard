@@ -189,6 +189,11 @@ app.get("/api/history", (req, res) => {
              ORDER BY timestamp ASC`
           )
           .all(yearAgo);
+        // Append the very latest reading so the chart reaches today
+        const latestFor1Y = db.prepare("SELECT timestamp, value FROM readings ORDER BY timestamp DESC LIMIT 1").get();
+        if (latestFor1Y && (query.length === 0 || query[query.length - 1].timestamp !== latestFor1Y.timestamp)) {
+          query.push(latestFor1Y);
+        }
         break;
       }
       case "MAX":
@@ -200,6 +205,11 @@ app.get("/api/history", (req, res) => {
              ORDER BY timestamp ASC`
           )
           .all();
+        // Append the very latest reading so the chart reaches today
+        const latestForMAX = db.prepare("SELECT timestamp, value FROM readings ORDER BY timestamp DESC LIMIT 1").get();
+        if (latestForMAX && (query.length === 0 || query[query.length - 1].timestamp !== latestForMAX.timestamp)) {
+          query.push(latestForMAX);
+        }
         break;
       default:
         query = db
@@ -286,6 +296,18 @@ app.get("/api/country-history", (req, res) => {
         GROUP BY strftime('%Y-%W', r.timestamp)
         ORDER BY timestamp ASC
       `).all(yearAgo);
+      // Append latest reading so chart extends to today
+      const latestCH1Y = db.prepare(`
+        SELECT r.timestamp,
+          MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
+          MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
+        FROM (SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1) r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        GROUP BY r.timestamp
+      `).get();
+      if (latestCH1Y && (rows.length === 0 || rows[rows.length - 1].timestamp !== latestCH1Y.timestamp)) {
+        rows.push(latestCH1Y);
+      }
 
     } else {
       // MAX: weekly averages across all data
@@ -298,6 +320,18 @@ app.get("/api/country-history", (req, res) => {
         GROUP BY strftime('%Y-%W', r.timestamp)
         ORDER BY timestamp ASC
       `).all();
+      // Append latest reading so chart extends to today
+      const latestCHMAX = db.prepare(`
+        SELECT r.timestamp,
+          MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
+          MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
+        FROM (SELECT * FROM readings ORDER BY timestamp DESC LIMIT 1) r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        GROUP BY r.timestamp
+      `).get();
+      if (latestCHMAX && (rows.length === 0 || rows[rows.length - 1].timestamp !== latestCHMAX.timestamp)) {
+        rows.push(latestCHMAX);
+      }
     }
 
     res.json({ range, data: rows });
@@ -356,8 +390,8 @@ app.post("/api/readings", (req, res) => {
         });
       }
 
-      // Duplicate prevention: only store if >0.5 point change
-      if (Math.abs(value - lastReading.value) < 0.5) {
+      // Duplicate prevention: only store if >0.01 point change
+      if (Math.abs(value - lastReading.value) < 0.01) {
         return res.json({ status: "skipped", reason: "value unchanged" });
       }
     }

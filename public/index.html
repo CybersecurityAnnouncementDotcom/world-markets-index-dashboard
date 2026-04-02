@@ -117,7 +117,8 @@
       font-size: 0.8rem;
       color: var(--text-muted);
       margin-top: 8px;
-      font-family: var(--font-mono);
+      font-family: var(--font-body);
+      font-weight: 400;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -776,11 +777,12 @@
       const pctCls = isPos ? 'positive' : 'negative';
       const pctSign = isPos ? '+' : '';
       const indexName = c.index || c.ticker || '';
+      const countryName = c.country || '';
       return `
         <div class="index-row">
           <div class="index-left">
-            <span class="index-flag">${c.flag || ''}<span class="flag-tooltip"><span class="ft-country">${c.country}</span><br><span class="ft-index">${indexName}</span></span></span>
-            <span class="index-name">${indexName || c.country}</span>
+            <span class="index-flag">${c.flag || ''}<span class="flag-tooltip"><span class="ft-country">${countryName}</span><br><span class="ft-index">${indexName}</span></span></span>
+            <span class="index-name">${countryName}${indexName ? ' — ' + indexName : ''}</span>
           </div>
           <span class="index-pct ${pctCls}">${pctSign}${fmt(c.change_pct || 0)}%</span>
         </div>
