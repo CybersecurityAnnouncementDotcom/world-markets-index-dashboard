@@ -39,6 +39,31 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_country_data_timestamp ON country_data(timestamp);
 `);
 
+// ---------------------------------------------------------------------------
+// Auth helpers — nginx sets X-Auth-* headers from the auth_request subrequest
+// ---------------------------------------------------------------------------
+
+function requireAuth(req, res, next) {
+  const tier = req.headers['x-auth-plan-tier'];
+  if (!tier) {
+    return res.status(401).json({ error: 'Authentication required. Access this dashboard through the website.' });
+  }
+  req.planTier = tier;
+  next();
+}
+
+function requirePro(req, res, next) {
+  const tier = req.headers['x-auth-plan-tier'];
+  if (!tier) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (tier !== 'pro') {
+    return res.status(403).json({ error: 'Pro subscription required for API access. Upgrade at https://quantitativegenius.com' });
+  }
+  req.planTier = tier;
+  next();
+}
+
 // Country metadata (for flag emojis, GDP, etc.)
 const COUNTRY_META = {
   USA: { flag: "🇺🇸", gdp: "$28.78T", ppp: "$28.78T", index: "S&P 500" },
@@ -63,8 +88,13 @@ const COUNTRY_META = {
   Switzerland: { flag: "🇨🇭", gdp: "$0.91T", ppp: "$0.75T", index: "SMI" },
 };
 
+// GET /api/user-tier
+app.get('/api/user-tier', requireAuth, (req, res) => {
+  res.json({ tier: req.planTier });
+});
+
 // API: Get current composite value + all country data
-app.get("/api/composite", (req, res) => {
+app.get("/api/composite", requireAuth, (req, res) => {
   try {
     // Get latest reading
     const latest = db
@@ -133,7 +163,7 @@ app.get("/api/composite", (req, res) => {
 });
 
 // API: Historical readings
-app.get("/api/history", (req, res) => {
+app.get("/api/history", requireAuth, (req, res) => {
   try {
     const range = req.query.range || "1Y";
     let query;
@@ -218,8 +248,7 @@ app.get("/api/history", (req, res) => {
 });
 
 // API: Historical country prices for chart overlay (USA/China)
-// Issue 4 fix: use raw (ungrouped) data for 1H/1D/1W; weekly averages only for 1Y/MAX
-app.get("/api/country-history", (req, res) => {
+app.get("/api/country-history", requireAuth, (req, res) => {
   try {
     const range = req.query.range || "MAX";
     const now = new Date();
@@ -325,7 +354,7 @@ app.get("/api/country-history", (req, res) => {
 });
 
 // API: All countries with current data
-app.get("/api/countries", (req, res) => {
+app.get("/api/countries", requireAuth, (req, res) => {
   try {
     const latest = db
       .prepare("SELECT timestamp FROM readings ORDER BY timestamp DESC LIMIT 1")
@@ -352,8 +381,13 @@ app.get("/api/countries", (req, res) => {
   }
 });
 
-// API: Store new reading
+// API: Store new reading (internal only — called by fetch script on localhost)
 app.post("/api/readings", (req, res) => {
+  // Only allow from localhost
+  const ip = req.ip || req.connection.remoteAddress;
+  if (ip !== '127.0.0.1' && ip !== '::1' && ip !== '::ffff:127.0.0.1') {
+    return res.status(403).json({ error: 'Internal endpoint' });
+  }
   try {
     const { timestamp, value, countries } = req.body;
 
@@ -406,6 +440,73 @@ app.post("/api/readings", (req, res) => {
     }
 
     res.json({ status: "ok", value });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Pro-only: CSV/JSON export endpoints
+// ---------------------------------------------------------------------------
+
+app.get('/api/export/json', requirePro, (req, res) => {
+  try {
+    const range = req.query.range || 'MAX';
+    const now = new Date();
+    let since = '1900-01-01T00:00:00.000Z';
+
+    switch (range) {
+      case '1W': since = new Date(now - 7 * 86400000).toISOString(); break;
+      case '1M': since = new Date(now - 30 * 86400000).toISOString(); break;
+      case '1Y': since = new Date(now - 365 * 86400000).toISOString(); break;
+      case 'MAX': default: since = '1900-01-01T00:00:00.000Z';
+    }
+
+    const readings = db.prepare(
+      'SELECT timestamp, value as composite_value FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC'
+    ).all(since);
+
+    // Get latest country data for context
+    const latestTs = readings.length > 0 ? readings[readings.length - 1].timestamp : null;
+    let countries = [];
+    if (latestTs) {
+      countries = db.prepare(
+        'SELECT country, ticker, price, weight, contribution FROM country_data WHERE timestamp = ? ORDER BY contribution DESC'
+      ).all(latestTs);
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="world-markets-index-${range}.json"`);
+    res.json({ export_date: new Date().toISOString(), range, record_count: readings.length, data: readings, latest_countries: countries });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/export/csv', requirePro, (req, res) => {
+  try {
+    const range = req.query.range || 'MAX';
+    const now = new Date();
+    let since = '1900-01-01T00:00:00.000Z';
+
+    switch (range) {
+      case '1W': since = new Date(now - 7 * 86400000).toISOString(); break;
+      case '1M': since = new Date(now - 30 * 86400000).toISOString(); break;
+      case '1Y': since = new Date(now - 365 * 86400000).toISOString(); break;
+      case 'MAX': default: since = '1900-01-01T00:00:00.000Z';
+    }
+
+    const readings = db.prepare(
+      'SELECT timestamp, value as composite_value FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC'
+    ).all(since);
+
+    let csv = 'timestamp,composite_value\n';
+    for (const r of readings) {
+      csv += `${r.timestamp},${r.composite_value}\n`;
+    }
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="world-markets-index-${range}.csv"`);
+    res.send(csv);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
