@@ -140,29 +140,22 @@ app.get("/api/history", (req, res) => {
     const now = new Date();
 
     switch (range) {
-      case "1H":
-        // Last 60 readings (minute-by-minute)
-        query = db
-          .prepare("SELECT * FROM readings ORDER BY timestamp DESC LIMIT 60")
-          .all()
-          .reverse();
-        break;
-      case "1D":
-        // Today's readings
-        const today = now.toISOString().split("T")[0];
+      case "1H": {
+        // Readings from the last 60 minutes only
+        const hourAgo = new Date(now - 60 * 60 * 1000).toISOString();
         query = db
           .prepare("SELECT * FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC")
-          .all(today);
-        // If no intraday data, get last 2 days
-        if (query.length < 2) {
-          query = db
-            .prepare(
-              "SELECT * FROM readings ORDER BY timestamp DESC LIMIT 10"
-            )
-            .all()
-            .reverse();
-        }
+          .all(hourAgo);
         break;
+      }
+      case "1D": {
+        // Readings from the last 24 hours only
+        const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+        query = db
+          .prepare("SELECT * FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC")
+          .all(dayAgo);
+        break;
+      }
       case "1W":
         const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
           .toISOString()
@@ -233,20 +226,8 @@ app.get("/api/country-history", (req, res) => {
     let rows;
 
     if (range === '1H') {
-      // Last 60 raw readings aligned with composite
-      rows = db.prepare(`
-        SELECT r.timestamp,
-          MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
-          MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
-        FROM (SELECT * FROM readings ORDER BY timestamp DESC LIMIT 60) r
-        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
-        GROUP BY r.timestamp
-        ORDER BY r.timestamp ASC
-      `).all();
-
-    } else if (range === '1D') {
-      // Today's raw readings (or last 10 if no intraday data)
-      const today = now.toISOString().split('T')[0];
+      // Readings from the last 60 minutes only
+      const hourAgo = new Date(now - 60 * 60 * 1000).toISOString();
       rows = db.prepare(`
         SELECT r.timestamp,
           MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
@@ -256,18 +237,21 @@ app.get("/api/country-history", (req, res) => {
         WHERE r.timestamp >= ?
         GROUP BY r.timestamp
         ORDER BY r.timestamp ASC
-      `).all(today);
-      if (rows.length < 2) {
-        rows = db.prepare(`
-          SELECT r.timestamp,
-            MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
-            MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
-          FROM (SELECT * FROM readings ORDER BY timestamp DESC LIMIT 10) r
-          LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
-          GROUP BY r.timestamp
-          ORDER BY r.timestamp ASC
-        `).all();
-      }
+      `).all(hourAgo);
+
+    } else if (range === '1D') {
+      // Readings from the last 24 hours only
+      const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      rows = db.prepare(`
+        SELECT r.timestamp,
+          MAX(CASE WHEN cd.country='USA' THEN cd.price END) as usa_price,
+          MAX(CASE WHEN cd.country='China' THEN cd.price END) as china_price
+        FROM readings r
+        LEFT JOIN country_data cd ON cd.timestamp = r.timestamp AND cd.country IN ('USA','China')
+        WHERE r.timestamp >= ?
+        GROUP BY r.timestamp
+        ORDER BY r.timestamp ASC
+      `).all(dayAgo);
 
     } else if (range === '1W') {
       // Raw readings from the past 7 days
