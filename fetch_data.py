@@ -7,7 +7,7 @@ import yfinance as yf
 from datetime import datetime
 
 COUNTRIES = [
-    {"country": "USA", "ticker": "^GSPC", "weight": 0.245, "index": "S&P 500", "flag": "🇺🇸"},
+    {"country": "USA", "ticker": "^GSPC", "weight": 0.246, "index": "S&P 500", "flag": "🇺🇸"},
     {"country": "China", "ticker": "000001.SS", "weight": 0.143, "index": "SSE Composite", "flag": "🇨🇳"},
     {"country": "Japan", "ticker": "^N225", "weight": 0.082, "index": "Nikkei 225", "flag": "🇯🇵"},
     {"country": "Germany", "ticker": "^GDAXI", "weight": 0.061, "index": "DAX", "flag": "🇩🇪"},

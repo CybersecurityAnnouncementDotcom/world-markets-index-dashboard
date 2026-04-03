@@ -10,8 +10,11 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "world_markets.db")
 
+# Scale factor to target S&P 500-like range (calibrated so composite tracks ~1,000-7,000)
+SCALE_FACTOR = 0.194715
+
 COUNTRIES = [
-    {"country": "USA", "ticker": "^GSPC", "weight": 0.245, "index": "S&P 500", "flag": "🇺🇸"},
+    {"country": "USA", "ticker": "^GSPC", "weight": 0.246, "index": "S&P 500", "flag": "🇺🇸"},
     {"country": "China", "ticker": "000001.SS", "weight": 0.143, "index": "SSE Composite", "flag": "🇨🇳"},
     {"country": "Japan", "ticker": "^N225", "weight": 0.082, "index": "Nikkei 225", "flag": "🇯🇵"},
     {"country": "Germany", "ticker": "^GDAXI", "weight": 0.061, "index": "DAX", "flag": "🇩🇪"},
@@ -156,7 +159,7 @@ def backfill():
                 continue
             
             baseline = baselines[ticker]
-            contribution = (price / baseline) * c["weight"] * 5000
+            contribution = (price / baseline) * c["weight"] * 5000 * SCALE_FACTOR
             composite += contribution
             has_data = True
             
