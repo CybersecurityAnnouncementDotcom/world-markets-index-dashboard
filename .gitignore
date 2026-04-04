@@ -3,3 +3,4 @@ deploy/
 *.log
 *.db-shm
 *.db-wal
+data/exports/

@@ -1,6 +1,7 @@
 const express = require("express");
 const Database = require("better-sqlite3");
 const path = require("path");
+const fs = require("fs");
 const { execSync, exec } = require("child_process");
 const cors = require("cors");
 
@@ -447,14 +448,51 @@ app.post("/api/readings", (req, res) => {
 
 // ---------------------------------------------------------------------------
 // Pro-only: CSV/JSON export endpoints
+// Serve pre-generated files from data/exports/ when available,
+// fall back to live DB queries if files don't exist yet.
 // ---------------------------------------------------------------------------
 
+const EXPORT_DIR = path.join(__dirname, 'data', 'exports');
+const DAILY_DIR = path.join(EXPORT_DIR, 'daily');
+
+// Helper: try to serve a pre-generated file, return false if not found
+function tryServeFile(filePath, contentType, downloadName, res) {
+  if (fs.existsSync(filePath)) {
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+    res.setHeader('X-Export-Source', 'pre-generated');
+    return res.sendFile(filePath);
+  }
+  return false;
+}
+
+// --- JSON export ---
 app.get('/api/export/json', requirePro, (req, res) => {
   try {
     const range = req.query.range || 'MAX';
+
+    // Try pre-generated files first
+    if (range === 'MAX') {
+      const file = path.join(EXPORT_DIR, 'world-markets-history.json');
+      if (fs.existsSync(file)) return tryServeFile(file, 'application/json', 'world-markets-index-MAX.json', res);
+    }
+
+    // Check for today's daily snapshot
+    const today = new Date().toISOString().split('T')[0];
+    if (range === '1D' || range === 'latest') {
+      const file = path.join(DAILY_DIR, `${today}.json`);
+      if (fs.existsSync(file)) return tryServeFile(file, 'application/json', `world-markets-index-${today}.json`, res);
+    }
+
+    // Latest snapshot
+    const latestFile = path.join(EXPORT_DIR, 'world-markets-latest.json');
+    if (range === 'latest' && fs.existsSync(latestFile)) {
+      return tryServeFile(latestFile, 'application/json', 'world-markets-latest.json', res);
+    }
+
+    // Fallback: live DB query
     const now = new Date();
     let since = '1900-01-01T00:00:00.000Z';
-
     switch (range) {
       case '1W': since = new Date(now - 7 * 86400000).toISOString(); break;
       case '1M': since = new Date(now - 30 * 86400000).toISOString(); break;
@@ -466,7 +504,6 @@ app.get('/api/export/json', requirePro, (req, res) => {
       'SELECT timestamp, value as composite_value FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC'
     ).all(since);
 
-    // Get latest country data for context
     const latestTs = readings.length > 0 ? readings[readings.length - 1].timestamp : null;
     let countries = [];
     if (latestTs) {
@@ -476,18 +513,38 @@ app.get('/api/export/json', requirePro, (req, res) => {
     }
 
     res.setHeader('Content-Disposition', `attachment; filename="world-markets-index-${range}.json"`);
+    res.setHeader('X-Export-Source', 'live-query');
     res.json({ export_date: new Date().toISOString(), range, record_count: readings.length, data: readings, latest_countries: countries });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// --- CSV export ---
 app.get('/api/export/csv', requirePro, (req, res) => {
   try {
     const range = req.query.range || 'MAX';
+
+    // Try pre-generated files first
+    if (range === 'MAX') {
+      const file = path.join(EXPORT_DIR, 'world-markets-history.csv');
+      if (fs.existsSync(file)) return tryServeFile(file, 'text/csv', 'world-markets-index-MAX.csv', res);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    if (range === '1D' || range === 'latest') {
+      const file = path.join(DAILY_DIR, `${today}.csv`);
+      if (fs.existsSync(file)) return tryServeFile(file, 'text/csv', `world-markets-index-${today}.csv`, res);
+    }
+
+    const latestFile = path.join(EXPORT_DIR, 'world-markets-latest.csv');
+    if (range === 'latest' && fs.existsSync(latestFile)) {
+      return tryServeFile(latestFile, 'text/csv', 'world-markets-latest.csv', res);
+    }
+
+    // Fallback: live DB query
     const now = new Date();
     let since = '1900-01-01T00:00:00.000Z';
-
     switch (range) {
       case '1W': since = new Date(now - 7 * 86400000).toISOString(); break;
       case '1M': since = new Date(now - 30 * 86400000).toISOString(); break;
@@ -506,7 +563,173 @@ app.get('/api/export/csv', requirePro, (req, res) => {
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="world-markets-index-${range}.csv"`);
+    res.setHeader('X-Export-Source', 'live-query');
     res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Pro API: Structured data endpoints for programmatic access
+// ---------------------------------------------------------------------------
+
+// GET /api/pro/latest — Latest composite + all country data (JSON)
+app.get('/api/pro/latest', requirePro, (req, res) => {
+  try {
+    // Try pre-generated file
+    const file = path.join(EXPORT_DIR, 'world-markets-latest.json');
+    if (fs.existsSync(file)) {
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      data.source = 'pre-generated';
+      return res.json(data);
+    }
+
+    // Fallback: live query
+    const latest = db.prepare('SELECT timestamp, value as composite_value FROM readings ORDER BY timestamp DESC LIMIT 1').get();
+    if (!latest) return res.json({ error: 'No data available' });
+
+    const countries = db.prepare(
+      'SELECT country, ticker, price, weight, contribution FROM country_data WHERE timestamp = ? ORDER BY contribution DESC'
+    ).all(latest.timestamp);
+
+    res.json({
+      date: latest.timestamp.split('T')[0],
+      timestamp: latest.timestamp,
+      composite_value: latest.composite_value,
+      countries,
+      source: 'live-query'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/pro/history — Full daily history (JSON)
+app.get('/api/pro/history', requirePro, (req, res) => {
+  try {
+    const format = req.query.format || 'json';
+
+    // Try pre-generated file
+    if (format === 'json') {
+      const file = path.join(EXPORT_DIR, 'world-markets-history.json');
+      if (fs.existsSync(file)) {
+        const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+        data.source = 'pre-generated';
+        return res.json(data);
+      }
+    }
+    if (format === 'csv') {
+      const file = path.join(EXPORT_DIR, 'world-markets-history.csv');
+      if (fs.existsSync(file)) {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="world-markets-history.csv"');
+        return res.sendFile(file);
+      }
+    }
+
+    // Fallback: live query (daily close readings)
+    const readings = db.prepare(`
+      SELECT date(timestamp) as date, MAX(timestamp) as timestamp, value as composite_value
+      FROM readings GROUP BY date(timestamp) ORDER BY date ASC
+    `).all();
+
+    if (format === 'csv') {
+      let csv = 'date,timestamp,composite_value\n';
+      for (const r of readings) csv += `${r.date},${r.timestamp},${r.composite_value}\n`;
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="world-markets-history.csv"');
+      return res.send(csv);
+    }
+
+    res.json({
+      export_date: new Date().toISOString(),
+      record_count: readings.length,
+      data: readings,
+      source: 'live-query'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/pro/daily/:date — Specific day snapshot (JSON/CSV)
+app.get('/api/pro/daily/:date', requirePro, (req, res) => {
+  try {
+    const dateStr = req.params.date; // YYYY-MM-DD
+    const format = req.query.format || 'json';
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+    }
+
+    // Try pre-generated file
+    const ext = format === 'csv' ? 'csv' : 'json';
+    const file = path.join(DAILY_DIR, `${dateStr}.${ext}`);
+    if (fs.existsSync(file)) {
+      if (format === 'csv') {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="world-markets-${dateStr}.csv"`);
+        return res.sendFile(file);
+      }
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      data.source = 'pre-generated';
+      return res.json(data);
+    }
+
+    // Fallback: live query for that date
+    const reading = db.prepare(`
+      SELECT MAX(timestamp) as timestamp, value as composite_value
+      FROM readings WHERE date(timestamp) = ?
+    `).get(dateStr);
+
+    if (!reading || !reading.composite_value) {
+      return res.status(404).json({ error: `No data for ${dateStr}` });
+    }
+
+    const countries = db.prepare(`
+      SELECT country, ticker, price, weight, contribution
+      FROM country_data WHERE timestamp = ? ORDER BY contribution DESC
+    `).all(reading.timestamp);
+
+    if (format === 'csv') {
+      let csv = 'date,country,ticker,price,weight,contribution\n';
+      for (const c of countries) {
+        csv += `${dateStr},${c.country},${c.ticker},${c.price},${c.weight},${c.contribution}\n`;
+      }
+      csv += `${dateStr},COMPOSITE,WMI,${reading.composite_value},1.0,${reading.composite_value}\n`;
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="world-markets-${dateStr}.csv"`);
+      return res.send(csv);
+    }
+
+    res.json({
+      date: dateStr,
+      timestamp: reading.timestamp,
+      composite_value: reading.composite_value,
+      countries,
+      source: 'live-query'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/pro/dates — List all available daily export dates
+app.get('/api/pro/dates', requirePro, (req, res) => {
+  try {
+    // Try from pre-generated directory
+    if (fs.existsSync(DAILY_DIR)) {
+      const files = fs.readdirSync(DAILY_DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')).sort();
+      if (files.length > 0) {
+        return res.json({ dates: files, count: files.length, source: 'pre-generated' });
+      }
+    }
+
+    // Fallback: query DB for unique dates
+    const dates = db.prepare('SELECT DISTINCT date(timestamp) as date FROM readings ORDER BY date ASC').all();
+    res.json({ dates: dates.map(d => d.date), count: dates.length, source: 'live-query' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
