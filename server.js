@@ -834,6 +834,44 @@ function fetchAndStore() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Auth proxy: forward /api/auth/* to auth server at localhost:5010
+// Avoids cross-origin issues when dashboard fetches API key endpoints
+// ---------------------------------------------------------------------------
+
+function proxyToAuth(method) {
+  return (req, res) => {
+    const authPath = req.path.replace('/api/auth', '/auth');
+    const options = {
+      hostname: 'localhost',
+      port: 5010,
+      path: authPath,
+      method: method,
+      headers: { cookie: req.headers.cookie || '' },
+    };
+    const proxyReq = require('http').request(options, (proxyRes) => {
+      let data = '';
+      proxyRes.on('data', chunk => data += chunk);
+      proxyRes.on('end', () => {
+        res.status(proxyRes.statusCode);
+        if (proxyRes.headers['set-cookie']) {
+          res.setHeader('set-cookie', proxyRes.headers['set-cookie']);
+        }
+        res.setHeader('Content-Type', 'application/json');
+        res.send(data);
+      });
+    });
+    proxyReq.on('error', () => {
+      res.status(502).json({ error: 'Auth server unreachable' });
+    });
+    proxyReq.end();
+  };
+}
+
+app.get('/api/auth/api-key-status', proxyToAuth('GET'));
+app.post('/api/auth/api-key', proxyToAuth('POST'));
+app.delete('/api/auth/api-key', proxyToAuth('DELETE'));
+
 // Serve the dashboard
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
