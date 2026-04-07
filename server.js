@@ -591,7 +591,7 @@ app.get('/api/export/csv', requireAuth, requirePro, (req, res) => {
       return tryServeFile(latestFile, 'text/csv', 'world-markets-latest.csv', res);
     }
 
-    // Fallback: live DB query
+    // Fallback: live DB query — includes per-country columns
     const now = new Date();
     let since = '1900-01-01T00:00:00.000Z';
     switch (range) {
@@ -601,13 +601,44 @@ app.get('/api/export/csv', requireAuth, requirePro, (req, res) => {
       case 'MAX': default: since = '1900-01-01T00:00:00.000Z';
     }
 
-    const readings = db.prepare(
-      'SELECT timestamp, value as composite_value FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC'
-    ).all(since);
+    // Get daily close readings (one per calendar day)
+    const readings = db.prepare(`
+      SELECT date(timestamp) as date, MAX(timestamp) as timestamp, value as composite_value
+      FROM readings WHERE timestamp >= ? GROUP BY date(timestamp) ORDER BY date ASC
+    `).all(since);
 
-    let csv = 'timestamp,composite_value\n';
+    // Get distinct countries in weight order
+    const countries = db.prepare(`
+      SELECT DISTINCT country FROM country_data ORDER BY weight DESC
+    `).all().map(r => r.country);
+
+    // Get all country data for the time range, keyed by timestamp
+    const countryRows = db.prepare(`
+      SELECT cd.timestamp, cd.country, cd.price
+      FROM country_data cd
+      INNER JOIN (
+        SELECT date(timestamp) as d, MAX(timestamp) as max_ts
+        FROM readings WHERE timestamp >= ? GROUP BY date(timestamp)
+      ) latest ON cd.timestamp = latest.max_ts
+      ORDER BY cd.timestamp ASC
+    `).all(since);
+
+    // Build lookup: timestamp -> { country: price }
+    const countryByTs = {};
+    for (const row of countryRows) {
+      if (!countryByTs[row.timestamp]) countryByTs[row.timestamp] = {};
+      countryByTs[row.timestamp][row.country] = row.price;
+    }
+
+    // Build CSV header
+    const countryHeaders = countries.map(c => `"${c}"`).join(',');
+    let csv = `date,timestamp,composite_value${countries.length ? ',' + countryHeaders : ''}\n`;
+
+    // Build CSV rows
     for (const r of readings) {
-      csv += `${r.timestamp},${r.composite_value}\n`;
+      const cData = countryByTs[r.timestamp] || {};
+      const countryValues = countries.map(c => cData[c] != null ? cData[c] : '').join(',');
+      csv += `${r.date},${r.timestamp},${r.composite_value}${countries.length ? ',' + countryValues : ''}\n`;
     }
 
     res.setHeader('Content-Type', 'text/csv');
