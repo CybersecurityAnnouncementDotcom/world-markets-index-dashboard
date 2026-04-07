@@ -833,7 +833,7 @@
       btn.classList.toggle('active', btn.dataset.range === range);
     });
 
-    const labels = data.map(d => d.timestamp);
+    const labels = data.map(d => d.timestamp.endsWith('Z') ? d.timestamp : d.timestamp + 'Z');
     const values = data.map(d => d.value);
 
     // Fetch historical USA (S&P 500) and China (SSE) prices for overlay
@@ -847,7 +847,7 @@
       const countryHistory = chJson.data || [];
       // Build a map from timestamp -> { usa_price, china_price }
       const chMap = {};
-      countryHistory.forEach(r => { chMap[r.timestamp] = r; });
+      countryHistory.forEach(r => { const k = r.timestamp.endsWith('Z') ? r.timestamp : r.timestamp + 'Z'; chMap[k] = r; });
       usaData = labels.map(ts => {
         const r = chMap[ts];
         return (r && r.usa_price != null) ? r.usa_price : null;
