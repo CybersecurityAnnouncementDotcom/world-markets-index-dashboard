@@ -107,7 +107,7 @@ def fetch_current_data():
             pass
     
     output = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
         "composite": round(composite, 2),
         "countries": results,
     }
