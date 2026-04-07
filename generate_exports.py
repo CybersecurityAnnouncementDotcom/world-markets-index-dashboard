@@ -202,35 +202,64 @@ def generate_latest(conn):
 
 
 def generate_history(conn):
-    """Generate full history CSV/JSON (composite daily closes)."""
+    """Generate full history CSV/JSON with per-country price columns."""
     readings = get_daily_close_readings(conn)
-
-    # History CSV — one row per day, composite only
-    write_csv(
-        EXPORT_DIR / "world-markets-history.csv",
-        readings,
-        ["date", "timestamp", "composite_value"]
-    )
-
-    # History JSON
-    write_json(EXPORT_DIR / "world-markets-history.json", {
-        "export_date": datetime.utcnow().isoformat(),
-        "record_count": len(readings),
-        "data": readings,
-    })
-
-    # Also generate a detailed history with all countries per day
     country_history = get_country_history(conn)
 
-    # Group by date
+    # Get distinct countries in weight order
+    countries = conn.execute(
+        "SELECT DISTINCT country FROM country_data ORDER BY weight DESC"
+    ).fetchall()
+    country_names = [r["country"] for r in countries]
+
+    # Group country data by date
     by_date = {}
     for row in country_history:
         d = row["date"]
         if d not in by_date:
-            by_date[d] = []
-        by_date[d].append(row)
+            by_date[d] = {}
+        by_date[d][row["country"]] = row["price"]
 
-    # Detailed CSV — one row per country per day
+    # Build pivoted rows: date, composite_value, Country1, Country2, ...
+    pivoted_rows = []
+    for r in readings:
+        row = {
+            "date": r["date"],
+            "composite_value": r["composite_value"],
+        }
+        date_countries = by_date.get(r["date"], {})
+        for c in country_names:
+            row[c] = date_countries.get(c, "")
+        pivoted_rows.append(row)
+
+    fieldnames = ["date", "composite_value"] + country_names
+
+    # History CSV — one row per day with country price columns
+    write_csv(
+        EXPORT_DIR / "world-markets-history.csv",
+        pivoted_rows,
+        fieldnames
+    )
+
+    # History JSON — include country data per day
+    json_data = []
+    for r in readings:
+        entry = {
+            "date": r["date"],
+            "timestamp": r["timestamp"],
+            "composite_value": r["composite_value"],
+            "countries": by_date.get(r["date"], {}),
+        }
+        json_data.append(entry)
+
+    write_json(EXPORT_DIR / "world-markets-history.json", {
+        "export_date": datetime.utcnow().isoformat(),
+        "record_count": len(json_data),
+        "countries": country_names,
+        "data": json_data,
+    })
+
+    # Also generate a detailed history with all countries per day (long format)
     write_csv(
         EXPORT_DIR / "world-markets-history-detailed.csv",
         country_history,
