@@ -516,7 +516,7 @@ function tryServeFile(filePath, contentType, downloadName, res) {
 }
 
 // --- JSON export ---
-app.get('/api/export/json', requirePro, (req, res) => {
+app.get('/api/export/json', requireAuth, requirePro, (req, res) => {
   try {
     const range = req.query.range || 'MAX';
 
@@ -570,7 +570,7 @@ app.get('/api/export/json', requirePro, (req, res) => {
 });
 
 // --- CSV export ---
-app.get('/api/export/csv', requirePro, (req, res) => {
+app.get('/api/export/csv', requireAuth, requirePro, (req, res) => {
   try {
     const range = req.query.range || 'MAX';
 
@@ -624,7 +624,7 @@ app.get('/api/export/csv', requirePro, (req, res) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/pro/latest — Latest composite + all country data (JSON)
-app.get('/api/pro/latest', requirePro, (req, res) => {
+app.get('/api/pro/latest', requireAuth, requirePro, (req, res) => {
   try {
     // Try pre-generated file
     const file = path.join(EXPORT_DIR, 'world-markets-latest.json');
@@ -655,7 +655,7 @@ app.get('/api/pro/latest', requirePro, (req, res) => {
 });
 
 // GET /api/pro/history — Full daily history (JSON)
-app.get('/api/pro/history', requirePro, (req, res) => {
+app.get('/api/pro/history', requireAuth, requirePro, (req, res) => {
   try {
     const format = req.query.format || 'json';
 
@@ -703,7 +703,7 @@ app.get('/api/pro/history', requirePro, (req, res) => {
 });
 
 // GET /api/pro/daily/:date — Specific day snapshot (JSON/CSV)
-app.get('/api/pro/daily/:date', requirePro, (req, res) => {
+app.get('/api/pro/daily/:date', requireAuth, requirePro, (req, res) => {
   try {
     const dateStr = req.params.date; // YYYY-MM-DD
     const format = req.query.format || 'json';
@@ -766,7 +766,7 @@ app.get('/api/pro/daily/:date', requirePro, (req, res) => {
 });
 
 // GET /api/pro/dates — List all available daily export dates
-app.get('/api/pro/dates', requirePro, (req, res) => {
+app.get('/api/pro/dates', requireAuth, requirePro, (req, res) => {
   try {
     // Try from pre-generated directory
     if (fs.existsSync(DAILY_DIR)) {
