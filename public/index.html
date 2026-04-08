@@ -129,6 +129,23 @@
     .chart-section {
       padding-bottom: 24px;
     }
+    .pct-toggle {
+      background: transparent;
+      border: 1px solid rgba(100,100,140,0.3);
+      color: #55556a;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pct-toggle:hover { color: var(--text-secondary); border-color: rgba(100,100,140,0.5); }
+    .pct-toggle.active {
+      background: rgba(0,212,170,0.15);
+      color: #00d4aa;
+      border-color: rgba(0,212,170,0.4);
+    }
     .chart-header {
       display: flex;
       align-items: center;
@@ -514,6 +531,7 @@
           <button class="chart-toggle" data-range="1Y">1Y</button>
           <button class="chart-toggle" data-range="MAX">MAX</button>
         </div>
+        <button id="pctToggle" class="pct-toggle" title="Toggle % change view">%</button>
       </div>
       <div class="chart-box">
         <div class="chart-canvas-wrap">
@@ -837,7 +855,6 @@
     const values = data.map(d => d.value);
 
     // Fetch historical USA (S&P 500) and China (SSE) prices for overlay
-    // Display raw DB prices as-is so all three lines share the same scale
     let usaData = [];
     let chinaData = [];
 
@@ -860,21 +877,16 @@
       console.error('Failed to fetch country history:', e);
     }
 
-    // Normalize all series to % change from first data point
-    // This lets all three lines share the same Y-axis scale and show visible movement
+    // % change mode: normalize to % from first data point in period
+    const pctMode = document.getElementById('pctToggle').classList.contains('active');
     function toPctChange(arr) {
       const first = arr.find(v => v != null);
       if (first == null || first === 0) return arr.map(() => null);
       return arr.map(v => v != null ? ((v - first) / first) * 100 : null);
     }
-    const pctValues = toPctChange(values);
-    const pctUsa = toPctChange(usaData);
-    const pctChina = toPctChange(chinaData);
-
-    // Keep raw values for tooltips
-    const rawValues = values;
-    const rawUsa = usaData;
-    const rawChina = chinaData;
+    const chartValues = pctMode ? toPctChange(values) : values;
+    const chartUsa = pctMode ? toPctChange(usaData) : usaData;
+    const chartChina = pctMode ? toPctChange(chinaData) : chinaData;
 
     // Determine trend color
     const isUp = values.length >= 2 && values[values.length - 1] >= values[0];
@@ -893,11 +905,10 @@
 
     // Issue 4 fix: always include USA and China datasets (not conditional on data presence)
     // Issue 2 fix: removed borderDash from USA dataset
-    // Chart displays % change; raw values shown in tooltips
     const datasets = [
       {
         label: 'World Markets Index',
-        data: pctValues,
+        data: chartValues,
         borderColor: mainColor,
         backgroundColor: mainFill,
         fill: true,
@@ -911,7 +922,7 @@
       },
       {
         label: 'USA (S&P 500)',
-        data: pctUsa,
+        data: chartUsa,
         borderColor: '#4488ff',
         borderWidth: 1.5,
         borderDash: [],
@@ -923,7 +934,7 @@
       },
       {
         label: 'China (SSE)',
-        data: pctChina,
+        data: chartChina,
         borderColor: '#ef4444',
         borderWidth: 1.5,
         borderDash: [],
@@ -959,19 +970,18 @@
               const idx = tt.dataPoints[0].dataIndex;
               const d = new Date(tt.dataPoints[0].parsed.x);
               const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
-              // Show raw values and % change in tooltip
-              const worldPct = context.chart.data.datasets[0].data[idx];
-              const worldRaw = rawValues[idx];
+              // Tooltip: show raw value + % change when in % mode
+              const worldRaw = values[idx];
+              const usaRaw = usaData[idx];
+              const chinaRaw = chinaData[idx];
+              const worldPct = pctMode ? chartValues[idx] : null;
+              const usaPct = pctMode ? chartUsa[idx] : null;
+              const chinaPct = pctMode ? chartChina[idx] : null;
               let html = `<div style="color:#8888a0;font-size:11px;margin-bottom:4px;font-family:DM Sans,sans-serif">${dateStr}</div>`;
               html += `<div style="color:#00d4aa;font-weight:600">World: ${fmt(worldRaw)}${worldPct != null ? ' (' + (worldPct >= 0 ? '+' : '') + worldPct.toFixed(2) + '%)' : ''}</div>`;
-              // Always reference dataset indices 1 and 2 since they're always present
-              const usaRaw = rawUsa[idx];
-              const usaPct = context.chart.data.datasets[1] ? context.chart.data.datasets[1].data[idx] : null;
               if (usaRaw != null) {
                 html += `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaRaw)}${usaPct != null ? ' (' + (usaPct >= 0 ? '+' : '') + usaPct.toFixed(2) + '%)' : ''}</div>`;
               }
-              const chinaRaw = rawChina[idx];
-              const chinaPct = context.chart.data.datasets[2] ? context.chart.data.datasets[2].data[idx] : null;
               if (chinaRaw != null) {
                 html += `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaRaw)}${chinaPct != null ? ' (' + (chinaPct >= 0 ? '+' : '') + chinaPct.toFixed(2) + '%)' : ''}</div>`;
               }
@@ -992,12 +1002,11 @@
             border: { display: false }
           },
           y: {
-            // % change Y-axis: all lines normalized to % from start of period
             grid: { color: 'rgba(30,30,42,0.6)', drawBorder: false },
             ticks: {
               color: '#55556a',
               font: { family: 'DM Mono', size: 10 },
-              callback: v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%'
+              callback: pctMode ? (v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%') : (v => v.toLocaleString())
             },
             border: { display: false }
           }
@@ -1005,6 +1014,12 @@
       }
     });
   }
+
+  // ── % Toggle Handler ──
+  document.getElementById('pctToggle').addEventListener('click', function() {
+    this.classList.toggle('active');
+    renderChart(currentRange);
+  });
 
   // ── Toggle Handlers ──
   document.querySelectorAll('.chart-toggle').forEach(btn => {
