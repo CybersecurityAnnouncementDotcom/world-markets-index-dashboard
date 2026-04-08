@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { execSync, exec } = require("child_process");
 const cors = require("cors");
+const { rateLimiter } = require('./rate-limiter');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -12,6 +13,14 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+// ---------------------------------------------------------------------------
+// Rate limiting — defense in depth (also rate-limited at nginx level)
+// ---------------------------------------------------------------------------
+const apiLimiter = rateLimiter({ windowMs: 60000, max: 60, message: 'Too many API requests. Please wait a moment.' });
+const exportLimiter = rateLimiter({ windowMs: 60000, max: 5, message: 'Export rate limit exceeded. Please wait before exporting again.' });
+const authLimiter = rateLimiter({ windowMs: 60000, max: 10, message: 'Too many auth attempts. Please wait.' });
+const proLimiter = rateLimiter({ windowMs: 60000, max: 30, message: 'Pro API rate limit exceeded. Please wait.' });
+
 
 // Database setup
 const DB_PATH = path.join(__dirname, "data", "world_markets.db");
@@ -139,12 +148,12 @@ const COUNTRY_META = {
 };
 
 // GET /api/user-tier
-app.get('/api/user-tier', requireAuth, (req, res) => {
+app.get('/api/user-tier', apiLimiter, requireAuth, (req, res) => {
   res.json({ tier: req.planTier });
 });
 
 // API: Get current composite value + all country data
-app.get("/api/composite", requireAuth, (req, res) => {
+app.get("/api/composite", apiLimiter, requireAuth, (req, res) => {
   try {
     // Get latest reading
     const latest = db
@@ -213,7 +222,7 @@ app.get("/api/composite", requireAuth, (req, res) => {
 });
 
 // API: Historical readings
-app.get("/api/history", requireAuth, (req, res) => {
+app.get("/api/history", apiLimiter, requireAuth, (req, res) => {
   try {
     const range = req.query.range || "1Y";
     let query;
@@ -298,7 +307,7 @@ app.get("/api/history", requireAuth, (req, res) => {
 });
 
 // API: Historical country prices for chart overlay (USA/China)
-app.get("/api/country-history", requireAuth, (req, res) => {
+app.get("/api/country-history", apiLimiter, requireAuth, (req, res) => {
   try {
     const range = req.query.range || "MAX";
     const now = new Date();
@@ -404,7 +413,7 @@ app.get("/api/country-history", requireAuth, (req, res) => {
 });
 
 // API: All countries with current data
-app.get("/api/countries", requireAuth, (req, res) => {
+app.get("/api/countries", apiLimiter, requireAuth, (req, res) => {
   try {
     const latest = db
       .prepare("SELECT timestamp FROM readings ORDER BY timestamp DESC LIMIT 1")
@@ -516,7 +525,7 @@ function tryServeFile(filePath, contentType, downloadName, res) {
 }
 
 // --- JSON export ---
-app.get('/api/export/json', requireAuth, requirePro, (req, res) => {
+app.get('/api/export/json', exportLimiter, requireAuth, requirePro, (req, res) => {
   try {
     const range = req.query.range || 'MAX';
 
@@ -570,7 +579,7 @@ app.get('/api/export/json', requireAuth, requirePro, (req, res) => {
 });
 
 // --- CSV export ---
-app.get('/api/export/csv', requireAuth, requirePro, (req, res) => {
+app.get('/api/export/csv', exportLimiter, requireAuth, requirePro, (req, res) => {
   try {
     const range = req.query.range || 'MAX';
 
@@ -655,7 +664,7 @@ app.get('/api/export/csv', requireAuth, requirePro, (req, res) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/pro/latest — Latest composite + all country data (JSON)
-app.get('/api/pro/latest', requireAuth, requirePro, (req, res) => {
+app.get('/api/pro/latest', proLimiter, requireAuth, requirePro, (req, res) => {
   try {
     // Try pre-generated file
     const file = path.join(EXPORT_DIR, 'world-markets-latest.json');
@@ -686,7 +695,7 @@ app.get('/api/pro/latest', requireAuth, requirePro, (req, res) => {
 });
 
 // GET /api/pro/history — Full daily history (JSON)
-app.get('/api/pro/history', requireAuth, requirePro, (req, res) => {
+app.get('/api/pro/history', proLimiter, requireAuth, requirePro, (req, res) => {
   try {
     const format = req.query.format || 'json';
 
@@ -734,7 +743,7 @@ app.get('/api/pro/history', requireAuth, requirePro, (req, res) => {
 });
 
 // GET /api/pro/daily/:date — Specific day snapshot (JSON/CSV)
-app.get('/api/pro/daily/:date', requireAuth, requirePro, (req, res) => {
+app.get('/api/pro/daily/:date', proLimiter, requireAuth, requirePro, (req, res) => {
   try {
     const dateStr = req.params.date; // YYYY-MM-DD
     const format = req.query.format || 'json';
@@ -797,7 +806,7 @@ app.get('/api/pro/daily/:date', requireAuth, requirePro, (req, res) => {
 });
 
 // GET /api/pro/dates — List all available daily export dates
-app.get('/api/pro/dates', requireAuth, requirePro, (req, res) => {
+app.get('/api/pro/dates', proLimiter, requireAuth, requirePro, (req, res) => {
   try {
     // Try from pre-generated directory
     if (fs.existsSync(DAILY_DIR)) {
@@ -903,9 +912,9 @@ function proxyToAuth(method) {
   };
 }
 
-app.get('/api/auth/api-key-status', proxyToAuth('GET'));
-app.post('/api/auth/api-key', proxyToAuth('POST'));
-app.delete('/api/auth/api-key', proxyToAuth('DELETE'));
+app.get('/api/auth/api-key-status', authLimiter, proxyToAuth('GET'));
+app.post('/api/auth/api-key', authLimiter, proxyToAuth('POST'));
+app.delete('/api/auth/api-key', authLimiter, proxyToAuth('DELETE'));
 
 // Serve the dashboard
 app.get("/", (req, res) => {
