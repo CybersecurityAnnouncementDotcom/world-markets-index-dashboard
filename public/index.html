@@ -860,6 +860,22 @@
       console.error('Failed to fetch country history:', e);
     }
 
+    // Normalize all series to % change from first data point
+    // This lets all three lines share the same Y-axis scale and show visible movement
+    function toPctChange(arr) {
+      const first = arr.find(v => v != null);
+      if (first == null || first === 0) return arr.map(() => null);
+      return arr.map(v => v != null ? ((v - first) / first) * 100 : null);
+    }
+    const pctValues = toPctChange(values);
+    const pctUsa = toPctChange(usaData);
+    const pctChina = toPctChange(chinaData);
+
+    // Keep raw values for tooltips
+    const rawValues = values;
+    const rawUsa = usaData;
+    const rawChina = chinaData;
+
     // Determine trend color
     const isUp = values.length >= 2 && values[values.length - 1] >= values[0];
     const mainColor = '#00d4aa';
@@ -877,10 +893,11 @@
 
     // Issue 4 fix: always include USA and China datasets (not conditional on data presence)
     // Issue 2 fix: removed borderDash from USA dataset
+    // Chart displays % change; raw values shown in tooltips
     const datasets = [
       {
         label: 'World Markets Index',
-        data: values,
+        data: pctValues,
         borderColor: mainColor,
         backgroundColor: mainFill,
         fill: true,
@@ -894,7 +911,7 @@
       },
       {
         label: 'USA (S&P 500)',
-        data: usaData,
+        data: pctUsa,
         borderColor: '#4488ff',
         borderWidth: 1.5,
         borderDash: [],
@@ -906,7 +923,7 @@
       },
       {
         label: 'China (SSE)',
-        data: chinaData,
+        data: pctChina,
         borderColor: '#ef4444',
         borderWidth: 1.5,
         borderDash: [],
@@ -942,17 +959,21 @@
               const idx = tt.dataPoints[0].dataIndex;
               const d = new Date(tt.dataPoints[0].parsed.x);
               const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
-              const worldVal = context.chart.data.datasets[0].data[idx];
+              // Show raw values and % change in tooltip
+              const worldPct = context.chart.data.datasets[0].data[idx];
+              const worldRaw = rawValues[idx];
               let html = `<div style="color:#8888a0;font-size:11px;margin-bottom:4px;font-family:DM Sans,sans-serif">${dateStr}</div>`;
-              html += `<div style="color:#00d4aa;font-weight:600">World: ${fmt(worldVal)}</div>`;
+              html += `<div style="color:#00d4aa;font-weight:600">World: ${fmt(worldRaw)}${worldPct != null ? ' (' + (worldPct >= 0 ? '+' : '') + worldPct.toFixed(2) + '%)' : ''}</div>`;
               // Always reference dataset indices 1 and 2 since they're always present
-              const usaVal = context.chart.data.datasets[1] ? context.chart.data.datasets[1].data[idx] : null;
-              if (usaVal != null) {
-                html += `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaVal)}</div>`;
+              const usaRaw = rawUsa[idx];
+              const usaPct = context.chart.data.datasets[1] ? context.chart.data.datasets[1].data[idx] : null;
+              if (usaRaw != null) {
+                html += `<div style="color:#4488ff;margin-top:2px">USA (S&P): ${fmt(usaRaw)}${usaPct != null ? ' (' + (usaPct >= 0 ? '+' : '') + usaPct.toFixed(2) + '%)' : ''}</div>`;
               }
-              const chinaVal = context.chart.data.datasets[2] ? context.chart.data.datasets[2].data[idx] : null;
-              if (chinaVal != null) {
-                html += `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaVal)}</div>`;
+              const chinaRaw = rawChina[idx];
+              const chinaPct = context.chart.data.datasets[2] ? context.chart.data.datasets[2].data[idx] : null;
+              if (chinaRaw != null) {
+                html += `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaRaw)}${chinaPct != null ? ' (' + (chinaPct >= 0 ? '+' : '') + chinaPct.toFixed(2) + '%)' : ''}</div>`;
               }
               el.innerHTML = html;
               el.style.opacity = '1';
@@ -971,13 +992,12 @@
             border: { display: false }
           },
           y: {
-            // Issue 1 fix: auto-scale to data range by not setting a fixed min/max
-            // Chart.js will auto-scale based on actual data values
+            // % change Y-axis: all lines normalized to % from start of period
             grid: { color: 'rgba(30,30,42,0.6)', drawBorder: false },
             ticks: {
               color: '#55556a',
               font: { family: 'DM Mono', size: 10 },
-              callback: v => v.toLocaleString()
+              callback: v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%'
             },
             border: { display: false }
           }
