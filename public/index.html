@@ -877,6 +877,9 @@
 
     // Issue 4 fix: always include USA and China datasets (not conditional on data presence)
     // Issue 2 fix: removed borderDash from USA dataset
+    // Issue 5 fix: separate Y-axes so S&P/SSE intraday variation is visible (not crushed by shared scale)
+    const showUSA = usaData && usaData.some(v => v != null);
+    const showChina = chinaData && chinaData.some(v => v != null);
     const datasets = [
       {
         label: 'World Markets Index',
@@ -890,6 +893,7 @@
         pointHoverBackgroundColor: mainColor,
         borderWidth: 2,
         borderDash: [],
+        yAxisID: 'y',
         order: 1
       },
       {
@@ -902,6 +906,7 @@
         pointHoverRadius: 3,
         tension: 0.3,
         fill: false,
+        yAxisID: 'y2',
         order: 2
       },
       {
@@ -914,6 +919,7 @@
         pointHoverRadius: 3,
         tension: 0.3,
         fill: false,
+        yAxisID: 'y3',
         order: 3
       }
     ];
@@ -970,17 +976,32 @@
             ticks: { color: '#55556a', font: { family: 'DM Mono', size: 10 }, maxTicksLimit: 8 },
             border: { display: false }
           },
+          // Left Y-axis: World Markets Index (green ticks)
           y: {
-            // Issue 1 fix: auto-scale to data range by not setting a fixed min/max
-            // Chart.js will auto-scale based on actual data values
+            position: 'left',
             grid: { color: 'rgba(30,30,42,0.6)', drawBorder: false },
             ticks: {
-              color: '#55556a',
+              color: '#00d4aa',
               font: { family: 'DM Mono', size: 10 },
               callback: v => v.toLocaleString()
             },
             border: { display: false }
-          }
+          },
+          // Right Y-axis: USA S&P 500 (blue ticks)
+          ...(showUSA ? { y2: {
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: {
+              color: '#4488ff',
+              font: { family: 'DM Mono', size: 10 },
+              callback: v => v.toLocaleString()
+            },
+            border: { display: false }
+          }} : {}),
+          // Hidden Y-axis: China SSE (own scale so intraday variation shows, no visible ticks)
+          ...(showChina ? { y3: {
+            display: false
+          }} : {})
         }
       }
     });
