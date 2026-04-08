@@ -1046,10 +1046,15 @@
         <div class="api-key-content" id="apiKeyContent"></div>
       `;
 
-      // Insert after the chart section (find the chart's parent card/section)
+      // Insert after the chart section, wrapped in a container for proper width
+      const apiWrapper = document.createElement('div');
+      apiWrapper.className = 'container';
+      apiWrapper.style.paddingTop = '0';
+      apiWrapper.style.paddingBottom = '12px';
+      apiWrapper.appendChild(apiKeySection);
       const chartSection = document.querySelector('.chart-section') || document.querySelector('.chart-card') || document.querySelector('.card:nth-child(2)');
       if (chartSection) {
-        chartSection.parentNode.insertBefore(apiKeySection, chartSection.nextSibling);
+        chartSection.parentNode.insertBefore(apiWrapper, chartSection.nextSibling);
       }
 
       // Check API key status
