@@ -1076,7 +1076,7 @@ app.listen(PORT, "0.0.0.0", () => {
   // Refresh every 60 seconds
   setInterval(fetchAndStore, 60000);
 
-  // Bitcoin: initial fetch after 8 seconds, then every 60 seconds
-  setTimeout(fetchAndStoreBitcoin, 8000);
+  // Bitcoin: initial fetch staggered 30s after main fetch, then every 60 seconds
+  setTimeout(fetchAndStoreBitcoin, 35000);
   setInterval(fetchAndStoreBitcoin, 60000);
 });
