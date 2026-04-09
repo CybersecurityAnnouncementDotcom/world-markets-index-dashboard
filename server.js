@@ -47,6 +47,12 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_readings_timestamp ON readings(timestamp);
   CREATE INDEX IF NOT EXISTS idx_country_data_timestamp ON country_data(timestamp);
+  CREATE TABLE IF NOT EXISTS bitcoin_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    price REAL NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_bitcoin_timestamp ON bitcoin_data(timestamp);
 `);
 
 // ---------------------------------------------------------------------------
@@ -412,6 +418,54 @@ app.get("/api/country-history", apiLimiter, requireAuth, (req, res) => {
   }
 });
 
+// API: Historical Bitcoin prices
+app.get("/api/bitcoin-history", apiLimiter, requireAuth, (req, res) => {
+  try {
+    const range = req.query.range || "MAX";
+    const now = new Date();
+    let rows;
+
+    if (range === '1H') {
+      const hourAgo = new Date(now - 60 * 60 * 1000).toISOString();
+      rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? ORDER BY timestamp ASC').all(hourAgo);
+    } else if (range === '1D') {
+      const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+      rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? ORDER BY timestamp ASC').all(dayAgo);
+    } else if (range === '1W') {
+      const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? ORDER BY timestamp ASC').all(weekAgo);
+    } else if (range === '1Y') {
+      const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+      rows = db.prepare(`
+        SELECT MIN(timestamp) as timestamp, ROUND(AVG(price), 2) as price
+        FROM bitcoin_data WHERE timestamp >= ?
+        GROUP BY strftime('%Y-%W', timestamp)
+        ORDER BY timestamp ASC
+      `).all(yearAgo);
+      const latest = db.prepare('SELECT timestamp, price FROM bitcoin_data ORDER BY timestamp DESC LIMIT 1').get();
+      if (latest && (rows.length === 0 || rows[rows.length - 1].timestamp !== latest.timestamp)) {
+        rows.push(latest);
+      }
+    } else {
+      // MAX
+      rows = db.prepare(`
+        SELECT MIN(timestamp) as timestamp, ROUND(AVG(price), 2) as price
+        FROM bitcoin_data
+        GROUP BY strftime('%Y-%W', timestamp)
+        ORDER BY timestamp ASC
+      `).all();
+      const latest = db.prepare('SELECT timestamp, price FROM bitcoin_data ORDER BY timestamp DESC LIMIT 1').get();
+      if (latest && (rows.length === 0 || rows[rows.length - 1].timestamp !== latest.timestamp)) {
+        rows.push(latest);
+      }
+    }
+
+    res.json({ readings: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API: All countries with current data
 app.get("/api/countries", apiLimiter, requireAuth, (req, res) => {
   try {
@@ -558,9 +612,28 @@ app.get('/api/export/json', exportLimiter, requireAuth, requirePro, (req, res) =
       case 'MAX': default: since = '1900-01-01T00:00:00.000Z';
     }
 
-    const readings = db.prepare(
-      'SELECT timestamp, value as composite_value FROM readings WHERE timestamp >= ? ORDER BY timestamp ASC'
-    ).all(since);
+    // Daily-only readings (1 row per calendar day, matching CSV pattern)
+    const readings = db.prepare(`
+      SELECT date(timestamp) as date, MAX(timestamp) as timestamp, value as composite_value
+      FROM readings WHERE timestamp >= ? GROUP BY date(timestamp) ORDER BY date ASC
+    `).all(since);
+
+    // Get bitcoin prices by date
+    const btcRows = db.prepare(`
+      SELECT date(timestamp) as date, price
+      FROM bitcoin_data WHERE timestamp >= ?
+      GROUP BY date(timestamp)
+      HAVING timestamp = MAX(timestamp)
+      ORDER BY date ASC
+    `).all(since);
+    const btcByDate = {};
+    for (const row of btcRows) btcByDate[row.date] = row.price;
+
+    // Add bitcoin_price to each reading
+    const dataWithBtc = readings.map(r => ({
+      ...r,
+      bitcoin_price: btcByDate[r.date] != null ? btcByDate[r.date] : null
+    }));
 
     const latestTs = readings.length > 0 ? readings[readings.length - 1].timestamp : null;
     let countries = [];
@@ -572,7 +645,7 @@ app.get('/api/export/json', exportLimiter, requireAuth, requirePro, (req, res) =
 
     res.setHeader('Content-Disposition', `attachment; filename="world-markets-index-${range}.json"`);
     res.setHeader('X-Export-Source', 'live-query');
-    res.json({ export_date: new Date().toISOString(), range, record_count: readings.length, data: readings, latest_countries: countries });
+    res.json({ export_date: new Date().toISOString(), range, record_count: dataWithBtc.length, data: dataWithBtc, latest_countries: countries });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -639,15 +712,27 @@ app.get('/api/export/csv', exportLimiter, requireAuth, requirePro, (req, res) =>
       countryByTs[row.timestamp][row.country] = row.price;
     }
 
+    // Get bitcoin prices by date
+    const btcRows = db.prepare(`
+      SELECT date(timestamp) as date, price
+      FROM bitcoin_data WHERE timestamp >= ?
+      GROUP BY date(timestamp)
+      HAVING timestamp = MAX(timestamp)
+      ORDER BY date ASC
+    `).all(since);
+    const btcByDate = {};
+    for (const row of btcRows) btcByDate[row.date] = row.price;
+
     // Build CSV header
     const countryHeaders = countries.map(c => `"${c}"`).join(',');
-    let csv = `date,timestamp,composite_value${countries.length ? ',' + countryHeaders : ''}\n`;
+    let csv = `date,timestamp,composite_value${countries.length ? ',' + countryHeaders : ''},bitcoin_price\n`;
 
     // Build CSV rows
     for (const r of readings) {
       const cData = countryByTs[r.timestamp] || {};
       const countryValues = countries.map(c => cData[c] != null ? cData[c] : '').join(',');
-      csv += `${r.date},${r.timestamp},${r.composite_value}${countries.length ? ',' + countryValues : ''}\n`;
+      const btcPrice = btcByDate[r.date] != null ? btcByDate[r.date] : '';
+      csv += `${r.date},${r.timestamp},${r.composite_value}${countries.length ? ',' + countryValues : ''},${btcPrice}\n`;
     }
 
     res.setHeader('Content-Type', 'text/csv');
@@ -723,18 +808,37 @@ app.get('/api/pro/history', proLimiter, requireAuth, requirePro, (req, res) => {
       FROM readings GROUP BY date(timestamp) ORDER BY date ASC
     `).all();
 
+    // Get bitcoin prices by date
+    const btcRows = db.prepare(`
+      SELECT date(timestamp) as date, price
+      FROM bitcoin_data
+      GROUP BY date(timestamp)
+      HAVING timestamp = MAX(timestamp)
+      ORDER BY date ASC
+    `).all();
+    const btcByDate = {};
+    for (const row of btcRows) btcByDate[row.date] = row.price;
+
     if (format === 'csv') {
-      let csv = 'date,timestamp,composite_value\n';
-      for (const r of readings) csv += `${r.date},${r.timestamp},${r.composite_value}\n`;
+      let csv = 'date,timestamp,composite_value,bitcoin_price\n';
+      for (const r of readings) {
+        const btcPrice = btcByDate[r.date] != null ? btcByDate[r.date] : '';
+        csv += `${r.date},${r.timestamp},${r.composite_value},${btcPrice}\n`;
+      }
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename="world-markets-history.csv"');
       return res.send(csv);
     }
 
+    const dataWithBtc = readings.map(r => ({
+      ...r,
+      bitcoin_price: btcByDate[r.date] != null ? btcByDate[r.date] : null
+    }));
+
     res.json({
       export_date: new Date().toISOString(),
-      record_count: readings.length,
-      data: readings,
+      record_count: dataWithBtc.length,
+      data: dataWithBtc,
       source: 'live-query'
     });
   } catch (err) {
@@ -878,6 +982,47 @@ function fetchAndStore() {
   });
 }
 
+// Fetch Bitcoin data using Python script
+function fetchAndStoreBitcoin() {
+  const scriptPath = path.join(__dirname, "fetch_bitcoin.py");
+  exec(`python3 "${scriptPath}"`, { timeout: 60000 }, (err, stdout, stderr) => {
+    if (err) {
+      console.error("Bitcoin fetch error:", err.message);
+      return;
+    }
+    try {
+      const data = JSON.parse(stdout);
+      if (data.error) {
+        console.error("Bitcoin Python error:", data.error);
+        return;
+      }
+
+      const price = data.bitcoin_price;
+      if (!price || price <= 0) return;
+
+      // Glitch protection: reject >30% drop from previous
+      const lastBtc = db.prepare("SELECT price FROM bitcoin_data ORDER BY timestamp DESC LIMIT 1").get();
+      if (lastBtc) {
+        const dropPct = ((lastBtc.price - price) / lastBtc.price) * 100;
+        if (dropPct > 30) {
+          console.log(`[Bitcoin] Rejected: ${dropPct.toFixed(1)}% drop from previous`);
+          return;
+        }
+        // Duplicate prevention: skip if change < 1.0
+        if (Math.abs(price - lastBtc.price) < 1.0) {
+          return;
+        }
+      }
+
+      const timestamp = new Date().toISOString();
+      db.prepare("INSERT INTO bitcoin_data (timestamp, price) VALUES (?, ?)").run(timestamp, price);
+      console.log(`[${timestamp}] Bitcoin: $${price.toLocaleString()}`);
+    } catch (parseErr) {
+      console.error("Bitcoin parse error:", parseErr.message);
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Auth proxy: forward /api/auth/* to auth server at localhost:5010
 // Avoids cross-origin issues when dashboard fetches API key endpoints
@@ -930,4 +1075,8 @@ app.listen(PORT, "0.0.0.0", () => {
 
   // Refresh every 60 seconds
   setInterval(fetchAndStore, 60000);
+
+  // Bitcoin: initial fetch after 8 seconds, then every 60 seconds
+  setTimeout(fetchAndStoreBitcoin, 8000);
+  setInterval(fetchAndStoreBitcoin, 60000);
 });

@@ -146,6 +146,25 @@
       color: #00d4aa;
       border-color: rgba(0,212,170,0.4);
     }
+    .btc-toggle {
+      background: transparent;
+      border: 1px solid rgba(100,100,140,0.3);
+      color: #5a586a;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-left: 4px;
+    }
+    .btc-toggle:hover { color: #8a8898; border-color: rgba(100,100,140,0.5); }
+    .btc-toggle.active {
+      background: rgba(247,147,26,0.15);
+      color: #f7931a;
+      border-color: rgba(247,147,26,0.4);
+      box-shadow: 0 0 12px rgba(247,147,26,0.2);
+    }
     .chart-header {
       display: flex;
       align-items: center;
@@ -532,6 +551,7 @@
           <button class="chart-toggle" data-range="MAX">MAX</button>
         </div>
         <button id="pctToggle" class="pct-toggle" title="Toggle % change view">%</button>
+        <button class="btc-toggle" id="btcToggle" title="Toggle Bitcoin overlay">&#x20bf;</button>
       </div>
       <div class="chart-box">
         <div class="chart-canvas-wrap">
@@ -550,6 +570,10 @@
           <div class="legend-item">
             <span class="legend-line" style="background: #ff4457;"></span>
             China (SSE)
+          </div>
+          <div class="legend-item" id="btcLegend" style="display:none">
+            <span class="legend-line" style="background: #f7931a;"></span>
+            Bitcoin
           </div>
         </div>
       </div>
@@ -688,6 +712,8 @@
   let chart = null;
   let currentRange = 'MAX';
   let compositeData = null;
+  let btcActive = false;
+  let btcData = [];
 
   const API_BASE = (() => {
     const portTag = '__PORT_5001__';
@@ -877,6 +903,24 @@
       console.error('Failed to fetch country history:', e);
     }
 
+    // Fetch Bitcoin data if toggle is active
+    let bitcoinRawData = [];
+    let bitcoinMapped = [];
+    if (btcActive) {
+      const btcReadings = await fetchBitcoinData(range);
+      const btcMap = {};
+      btcReadings.forEach(r => { const k = r.timestamp.endsWith('Z') ? r.timestamp : r.timestamp + 'Z'; btcMap[k] = r.price; });
+      // For date-only timestamps (backfilled data), also try date matching
+      btcReadings.forEach(r => { if (!r.timestamp.includes('T')) btcMap[r.timestamp] = r.price; });
+      bitcoinMapped = labels.map(ts => {
+        if (btcMap[ts] != null) return btcMap[ts];
+        // Try matching by date portion only
+        const dateOnly = ts.split('T')[0];
+        return btcMap[dateOnly] != null ? btcMap[dateOnly] : null;
+      });
+      bitcoinRawData = bitcoinMapped;
+    }
+
     // % change mode: normalize to % from first data point in period
     const pctMode = document.getElementById('pctToggle').classList.contains('active');
     function toPctChange(arr) {
@@ -887,6 +931,7 @@
     const chartValues = pctMode ? toPctChange(values) : values;
     const chartUsa = pctMode ? toPctChange(usaData) : usaData;
     const chartChina = pctMode ? toPctChange(chinaData) : chinaData;
+    const chartBitcoin = btcActive ? (pctMode ? toPctChange(bitcoinMapped) : bitcoinMapped) : [];
 
     // Determine trend color
     const isUp = values.length >= 2 && values[values.length - 1] >= values[0];
@@ -946,6 +991,23 @@
       }
     ];
 
+    // Add Bitcoin dataset when active
+    if (btcActive) {
+      datasets.push({
+        label: 'Bitcoin',
+        data: chartBitcoin,
+        borderColor: '#f7931a',
+        borderWidth: 1.5,
+        borderDash: [],
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        tension: 0.3,
+        fill: false,
+        yAxisID: pctMode ? 'y' : 'y2',
+        order: 4
+      });
+    }
+
     chart = new Chart(ctx, {
       type: 'line',
       data: { labels, datasets },
@@ -974,9 +1036,11 @@
               const worldRaw = values[idx];
               const usaRaw = usaData[idx];
               const chinaRaw = chinaData[idx];
+              const btcRaw = btcActive ? bitcoinRawData[idx] : null;
               const worldPct = pctMode ? chartValues[idx] : null;
               const usaPct = pctMode ? chartUsa[idx] : null;
               const chinaPct = pctMode ? chartChina[idx] : null;
+              const btcPct = (btcActive && pctMode) ? chartBitcoin[idx] : null;
               let html = `<div style="color:#8888a0;font-size:11px;margin-bottom:4px;font-family:DM Sans,sans-serif">${dateStr}</div>`;
               html += `<div style="color:#00d4aa;font-weight:600">World: ${fmt(worldRaw)}${worldPct != null ? ' (' + (worldPct >= 0 ? '+' : '') + worldPct.toFixed(2) + '%)' : ''}</div>`;
               if (usaRaw != null) {
@@ -984,6 +1048,9 @@
               }
               if (chinaRaw != null) {
                 html += `<div style="color:#ef4444;margin-top:1px">China (SSE): ${fmt(chinaRaw)}${chinaPct != null ? ' (' + (chinaPct >= 0 ? '+' : '') + chinaPct.toFixed(2) + '%)' : ''}</div>`;
+              }
+              if (btcRaw != null) {
+                html += `<div style="color:#f7931a;margin-top:1px">Bitcoin: $${btcRaw.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}${btcPct != null ? ' (' + (btcPct >= 0 ? '+' : '') + btcPct.toFixed(2) + '%)' : ''}</div>`;
               }
               el.innerHTML = html;
               el.style.opacity = '1';
@@ -1009,6 +1076,23 @@
               callback: pctMode ? (v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%') : (v => v.toLocaleString())
             },
             border: { display: false }
+          },
+          y2: {
+            display: btcActive && !pctMode,
+            position: 'right',
+            grid: { display: false },
+            ticks: {
+              color: '#f7931a',
+              callback: (v) => '$' + v.toLocaleString(),
+              font: { size: 10 }
+            },
+            title: {
+              display: true,
+              text: 'Bitcoin (USD)',
+              color: '#f7931a',
+              font: { size: 11 }
+            },
+            border: { display: false }
           }
         }
       }
@@ -1020,6 +1104,25 @@
     this.classList.toggle('active');
     renderChart(currentRange);
   });
+
+  // ── Bitcoin Toggle Handler ──
+  document.getElementById('btcToggle').addEventListener('click', function() {
+    btcActive = !btcActive;
+    this.classList.toggle('active', btcActive);
+    document.getElementById('btcLegend').style.display = btcActive ? '' : 'none';
+    renderChart(currentRange);
+  });
+
+  async function fetchBitcoinData(range) {
+    try {
+      const resp = await fetch(API_BASE + '/api/bitcoin-history?range=' + range);
+      const data = await resp.json();
+      return data.readings || [];
+    } catch(e) {
+      console.error('Bitcoin fetch error:', e);
+      return [];
+    }
+  }
 
   // ── Toggle Handlers ──
   document.querySelectorAll('.chart-toggle').forEach(btn => {

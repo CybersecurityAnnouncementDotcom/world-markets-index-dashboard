@@ -51,6 +51,18 @@ def get_daily_close_readings(conn):
     return [dict(r) for r in rows]
 
 
+def get_bitcoin_by_date(conn):
+    """Get the last bitcoin price for each calendar day."""
+    rows = conn.execute("""
+        SELECT date(timestamp) as date, price
+        FROM bitcoin_data
+        GROUP BY date(timestamp)
+        HAVING timestamp = MAX(timestamp)
+        ORDER BY date ASC
+    """).fetchall()
+    return {r["date"]: r["price"] for r in rows}
+
+
 def get_latest_country_data(conn):
     """Get the most recent country breakdown."""
     latest = conn.execute(
@@ -205,6 +217,7 @@ def generate_history(conn):
     """Generate full history CSV/JSON with per-country price columns."""
     readings = get_daily_close_readings(conn)
     country_history = get_country_history(conn)
+    btc_by_date = get_bitcoin_by_date(conn)
 
     # Get distinct countries in weight order
     countries = conn.execute(
@@ -220,7 +233,7 @@ def generate_history(conn):
             by_date[d] = {}
         by_date[d][row["country"]] = row["price"]
 
-    # Build pivoted rows: date, composite_value, Country1, Country2, ...
+    # Build pivoted rows: date, composite_value, Country1, Country2, ..., bitcoin_price
     pivoted_rows = []
     for r in readings:
         row = {
@@ -230,18 +243,19 @@ def generate_history(conn):
         date_countries = by_date.get(r["date"], {})
         for c in country_names:
             row[c] = date_countries.get(c, "")
+        row["bitcoin_price"] = btc_by_date.get(r["date"], "")
         pivoted_rows.append(row)
 
-    fieldnames = ["date", "composite_value"] + country_names
+    fieldnames = ["date", "composite_value"] + country_names + ["bitcoin_price"]
 
-    # History CSV — one row per day with country price columns
+    # History CSV — one row per day with country price columns + bitcoin
     write_csv(
         EXPORT_DIR / "world-markets-history.csv",
         pivoted_rows,
         fieldnames
     )
 
-    # History JSON — include country data per day
+    # History JSON — include country data per day + bitcoin price
     json_data = []
     for r in readings:
         entry = {
@@ -249,6 +263,7 @@ def generate_history(conn):
             "timestamp": r["timestamp"],
             "composite_value": r["composite_value"],
             "countries": by_date.get(r["date"], {}),
+            "bitcoin_price": btc_by_date.get(r["date"]),
         }
         json_data.append(entry)
 
