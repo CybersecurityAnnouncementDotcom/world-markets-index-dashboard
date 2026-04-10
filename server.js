@@ -427,10 +427,11 @@ app.get("/api/bitcoin-history", apiLimiter, requireAuth, (req, res) => {
 
     if (range === '1H') {
       const hourAgo = new Date(now - 60 * 60 * 1000).toISOString();
-      rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? ORDER BY timestamp ASC').all(hourAgo);
+      const dateFloor = hourAgo.split('T')[0];
+      rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? OR timestamp = ? ORDER BY timestamp ASC').all(hourAgo, dateFloor);
     } else if (range === '1D') {
-      const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-      rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? ORDER BY timestamp ASC').all(dayAgo);
+      const dayAgoDate = new Date(now - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? ORDER BY timestamp ASC').all(dayAgoDate);
     } else if (range === '1W') {
       const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       rows = db.prepare('SELECT timestamp, price FROM bitcoin_data WHERE timestamp >= ? ORDER BY timestamp ASC').all(weekAgo);

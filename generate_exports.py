@@ -39,12 +39,14 @@ def get_db():
 
 
 def get_daily_close_readings(conn):
-    """Get one reading per calendar day (the last reading of each day)."""
+    """Get one reading per calendar day (the last reading of each day).
+    Starts from 2006-01-04 to exclude sparse early entries (1/2 and 1/3)."""
     rows = conn.execute("""
         SELECT date(timestamp) as date,
                MAX(timestamp) as timestamp,
                value as composite_value
         FROM readings
+        WHERE date(timestamp) >= '2006-01-04'
         GROUP BY date(timestamp)
         ORDER BY date ASC
     """).fetchall()
@@ -79,14 +81,17 @@ def get_latest_country_data(conn):
 
 
 def get_country_history(conn):
-    """Get daily country-level data (last reading per day per country)."""
+    """Get daily country-level data (last reading per day per country).
+    Starts from 2006-01-04 to exclude sparse early entries."""
     rows = conn.execute("""
         SELECT date(cd.timestamp) as date,
                cd.country, cd.ticker, cd.price, cd.weight, cd.contribution
         FROM country_data cd
         INNER JOIN (
             SELECT date(timestamp) as d, MAX(timestamp) as max_ts
-            FROM readings GROUP BY date(timestamp)
+            FROM readings
+            WHERE date(timestamp) >= '2006-01-04'
+            GROUP BY date(timestamp)
         ) latest ON cd.timestamp = latest.max_ts
         ORDER BY date ASC, cd.contribution DESC
     """).fetchall()
