@@ -908,27 +908,36 @@
     let bitcoinMapped = [];
     if (btcActive) {
       const btcReadings = await fetchBitcoinData(range);
-      const useMinuteMatch = (range === '1H' || range === '1D');
-      const btcMinuteMap = {};
+      const useNearestMatch = (range === '1H' || range === '1D');
       const btcDateMap = {};
+      // For 1H/1D: build sorted array of {ms, price} for nearest-match within ±2 min
+      const btcSorted = [];
       btcReadings.forEach(r => {
         const ts = r.timestamp.endsWith('Z') ? r.timestamp : r.timestamp + 'Z';
-        // Minute-level key (YYYY-MM-DDTHH:MM)
         if (ts.includes('T')) {
-          btcMinuteMap[ts.slice(0, 16)] = r.price;
+          btcSorted.push({ ms: new Date(ts).getTime(), price: r.price });
         }
-        // Date-level key (YYYY-MM-DD) — handles both date-only backfill and full timestamps
         btcDateMap[ts.split('T')[0]] = r.price;
-        // Also handle pure date-only timestamps from backfill
         if (!r.timestamp.includes('T')) {
           btcDateMap[r.timestamp] = r.price;
         }
       });
+      btcSorted.sort((a, b) => a.ms - b.ms);
+      const BTC_MAX_GAP = 2 * 60 * 1000; // ±2 minutes
+      function findNearestBtc(targetMs) {
+        let lo = 0, hi = btcSorted.length - 1, best = null;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          const diff = btcSorted[mid].ms - targetMs;
+          if (best === null || Math.abs(diff) < Math.abs(best.ms - targetMs)) best = btcSorted[mid];
+          if (diff < 0) lo = mid + 1; else hi = mid - 1;
+        }
+        return best && Math.abs(best.ms - targetMs) <= BTC_MAX_GAP ? best.price : null;
+      }
       bitcoinMapped = labels.map(ts => {
-        if (useMinuteMatch) {
-          // 1H/1D: minute-level only — no date fallback (real data only)
-          const minuteKey = ts.slice(0, 16);
-          return btcMinuteMap[minuteKey] != null ? btcMinuteMap[minuteKey] : null;
+        if (useNearestMatch) {
+          // 1H/1D: find nearest real BTC reading within ±2 min
+          return findNearestBtc(new Date(ts).getTime());
         }
         // 1W/1Y/MAX: date-level match (one price per day from backfill is real data)
         const dateOnly = ts.split('T')[0];
