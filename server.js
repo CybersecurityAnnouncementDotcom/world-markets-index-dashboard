@@ -982,44 +982,47 @@ function fetchAndStore() {
   });
 }
 
-// Fetch Bitcoin data using Python script
+// Fetch Bitcoin data via Yahoo Finance JSON API (native Node.js, no Python)
 function fetchAndStoreBitcoin() {
-  const scriptPath = path.join(__dirname, "fetch_bitcoin.py");
-  exec(`python3 "${scriptPath}"`, { timeout: 60000 }, (err, stdout, stderr) => {
-    if (err) {
-      console.error("Bitcoin fetch error:", err.message);
-      return;
-    }
-    try {
-      const data = JSON.parse(stdout);
-      if (data.error) {
-        console.error("Bitcoin Python error:", data.error);
-        return;
-      }
-
-      const price = data.bitcoin_price;
-      if (!price || price <= 0) return;
-
-      // Glitch protection: reject >30% drop from previous
-      const lastBtc = db.prepare("SELECT price FROM bitcoin_data ORDER BY timestamp DESC LIMIT 1").get();
-      if (lastBtc) {
-        const dropPct = ((lastBtc.price - price) / lastBtc.price) * 100;
-        if (dropPct > 30) {
-          console.log(`[Bitcoin] Rejected: ${dropPct.toFixed(1)}% drop from previous`);
+  const url = 'https://query1.finance.yahoo.com/v8/finance/chart/BTC-USD?interval=1d&range=1d';
+  const https = require('https');
+  const options = { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 15000 };
+  https.get(url, options, (resp) => {
+    let body = '';
+    resp.on('data', (chunk) => body += chunk);
+    resp.on('end', () => {
+      try {
+        const json = JSON.parse(body);
+        const meta = json.chart.result[0].meta;
+        const price = parseFloat(meta.regularMarketPrice);
+        if (!price || price <= 0) {
+          console.error('Bitcoin: invalid price from Yahoo');
           return;
         }
-        // Duplicate prevention: skip if change < 1.0
-        if (Math.abs(price - lastBtc.price) < 1.0) {
-          return;
-        }
-      }
 
-      const timestamp = new Date().toISOString();
-      db.prepare("INSERT INTO bitcoin_data (timestamp, price) VALUES (?, ?)").run(timestamp, price);
-      console.log(`[${timestamp}] Bitcoin: $${price.toLocaleString()}`);
-    } catch (parseErr) {
-      console.error("Bitcoin parse error:", parseErr.message);
-    }
+        // Glitch protection: reject >30% drop from previous
+        const lastBtc = db.prepare("SELECT price FROM bitcoin_data ORDER BY timestamp DESC LIMIT 1").get();
+        if (lastBtc) {
+          const dropPct = ((lastBtc.price - price) / lastBtc.price) * 100;
+          if (dropPct > 30) {
+            console.log(`[Bitcoin] Rejected: ${dropPct.toFixed(1)}% drop from previous`);
+            return;
+          }
+          // Duplicate prevention: skip if change < 1.0
+          if (Math.abs(price - lastBtc.price) < 1.0) {
+            return;
+          }
+        }
+
+        const timestamp = new Date().toISOString();
+        db.prepare("INSERT INTO bitcoin_data (timestamp, price) VALUES (?, ?)").run(timestamp, price);
+        console.log(`[${timestamp}] Bitcoin: $${price}`);
+      } catch (parseErr) {
+        console.error("Bitcoin parse error:", parseErr.message);
+      }
+    });
+  }).on('error', (err) => {
+    console.error('Bitcoin fetch error:', err.message);
   });
 }
 
