@@ -908,15 +908,31 @@
     let bitcoinMapped = [];
     if (btcActive) {
       const btcReadings = await fetchBitcoinData(range);
-      const btcMap = {};
-      btcReadings.forEach(r => { const k = r.timestamp.endsWith('Z') ? r.timestamp : r.timestamp + 'Z'; btcMap[k] = r.price; });
-      // For date-only timestamps (backfilled data), also try date matching
-      btcReadings.forEach(r => { if (!r.timestamp.includes('T')) btcMap[r.timestamp] = r.price; });
+      const useMinuteMatch = (range === '1H' || range === '1D');
+      const btcMinuteMap = {};
+      const btcDateMap = {};
+      btcReadings.forEach(r => {
+        const ts = r.timestamp.endsWith('Z') ? r.timestamp : r.timestamp + 'Z';
+        // Minute-level key (YYYY-MM-DDTHH:MM)
+        if (ts.includes('T')) {
+          btcMinuteMap[ts.slice(0, 16)] = r.price;
+        }
+        // Date-level key (YYYY-MM-DD) — handles both date-only backfill and full timestamps
+        btcDateMap[ts.split('T')[0]] = r.price;
+        // Also handle pure date-only timestamps from backfill
+        if (!r.timestamp.includes('T')) {
+          btcDateMap[r.timestamp] = r.price;
+        }
+      });
       bitcoinMapped = labels.map(ts => {
-        if (btcMap[ts] != null) return btcMap[ts];
-        // Try matching by date portion only
+        if (useMinuteMatch) {
+          // 1H/1D: minute-level only — no date fallback (real data only)
+          const minuteKey = ts.slice(0, 16);
+          return btcMinuteMap[minuteKey] != null ? btcMinuteMap[minuteKey] : null;
+        }
+        // 1W/1Y/MAX: date-level match (one price per day from backfill is real data)
         const dateOnly = ts.split('T')[0];
-        return btcMap[dateOnly] != null ? btcMap[dateOnly] : null;
+        return btcDateMap[dateOnly] != null ? btcDateMap[dateOnly] : null;
       });
       bitcoinRawData = bitcoinMapped;
     }
