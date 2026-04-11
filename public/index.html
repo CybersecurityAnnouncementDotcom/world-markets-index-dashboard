@@ -877,8 +877,8 @@
       btn.classList.toggle('active', btn.dataset.range === range);
     });
 
-    const labels = data.map(d => d.timestamp.endsWith('Z') ? d.timestamp : d.timestamp + 'Z');
-    const values = data.map(d => d.value);
+    let labels = data.map(d => d.timestamp.endsWith('Z') ? d.timestamp : d.timestamp + 'Z');
+    let values = data.map(d => d.value);
 
     // Fetch historical USA (S&P 500) and China (SSE) prices for overlay
     let usaData = [];
@@ -943,6 +943,30 @@
         const dateOnly = ts.split('T')[0];
         return btcDateMap[dateOnly] != null ? btcDateMap[dateOnly] : null;
       });
+
+      // Extend chart with real BTC data beyond market close (1H/1D only)
+      // BTC trades 24/7 — when world markets are closed, append real BTC
+      // timestamps so the chart continues showing live BTC price movement.
+      if (useNearestMatch && btcSorted.length > 0) {
+        const lastMainMs = labels.length > 0 ? new Date(labels[labels.length - 1]).getTime() : 0;
+        const extraBtc = lastMainMs > 0
+          ? btcSorted.filter(b => b.ms > lastMainMs + 120000)
+          : btcSorted; // no main readings at all — use all BTC data
+        if (extraBtc.length > 0) {
+          let lastAddedMs = lastMainMs;
+          for (const b of extraBtc) {
+            if (b.ms - lastAddedMs >= 55000) {
+              labels.push(new Date(b.ms).toISOString());
+              values.push(null);
+              usaData.push(null);
+              chinaData.push(null);
+              bitcoinMapped.push(b.price);
+              lastAddedMs = b.ms;
+            }
+          }
+        }
+      }
+
       bitcoinRawData = bitcoinMapped;
     }
 
