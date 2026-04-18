@@ -1071,7 +1071,7 @@ app.get("/", (req, res) => {
 });
 
 // Start server
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, '127.0.0.1', "0.0.0.0", () => {
   console.log(`World Markets Dashboard running on port ${PORT}`);
 
   // Initial fetch after 5 seconds
