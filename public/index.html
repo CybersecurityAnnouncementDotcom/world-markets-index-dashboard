@@ -71,6 +71,14 @@
       text-transform: uppercase;
       color: var(--blue);
     }
+    .brand-text { display:flex; flex-direction:column; gap:2px; }
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #FFD700;
+    }
 
     /* ═══ HERO ═══ */
     .hero {
@@ -525,7 +533,10 @@
         <circle cx="14" cy="22" r="2.2" fill="#4488ff"/>
         <circle cx="26" cy="14" r="2.2" fill="#4488ff"/>
       </svg>
-      <div class="brand-title">World Markets Index</div>
+      <div class="brand-text">
+        <div class="brand-title">World Markets Index</div>
+        <a class="brand-sub" href="https://quantitativegenius.com" target="_blank" rel="noopener" style="text-decoration:none;">QuantitativeGenius.com</a>
+      </div>
     </div>
   </header>
 
@@ -696,7 +707,7 @@
   <footer class="footer">
     <div class="container">
       <div class="footer-line">
-        Sponsored by <a href="https://QuantitativeGenius.com" target="_blank" rel="noopener noreferrer">QuantitativeGenius.com</a>
+        <a href="https://QuantitativeGenius.com" target="_blank" rel="noopener noreferrer">QuantitativeGenius.com</a>
         <span id="footerTime"></span>
       </div>
       <div class="footer-disclaimer">
