@@ -271,7 +271,7 @@ app.get("/api/history", apiLimiter, requireAuth, (req, res) => {
           .split("T")[0];
         query = db
           .prepare(
-            `SELECT MIN(timestamp) as timestamp, ROUND(AVG(value), 2) as value
+            `SELECT MAX(timestamp) as timestamp, ROUND(AVG(value), 2) as value
              FROM readings WHERE timestamp >= ?
              GROUP BY strftime('%Y-%W', timestamp)
              ORDER BY timestamp ASC`
@@ -287,7 +287,7 @@ app.get("/api/history", apiLimiter, requireAuth, (req, res) => {
       case "MAX":
         query = db
           .prepare(
-            `SELECT MIN(timestamp) as timestamp, ROUND(AVG(value), 2) as value
+            `SELECT MAX(timestamp) as timestamp, ROUND(AVG(value), 2) as value
              FROM readings
              GROUP BY strftime('%Y-%W', timestamp)
              ORDER BY timestamp ASC`
@@ -365,7 +365,7 @@ app.get("/api/country-history", apiLimiter, requireAuth, (req, res) => {
       // Weekly averages for past year
       const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().split('T')[0];
       rows = db.prepare(`
-        SELECT MIN(r.timestamp) as timestamp,
+        SELECT MAX(r.timestamp) as timestamp,
           ROUND(AVG(CASE WHEN cd.country='USA' THEN cd.price END), 2) as usa_price,
           ROUND(AVG(CASE WHEN cd.country='China' THEN cd.price END), 2) as china_price
         FROM readings r
@@ -390,7 +390,7 @@ app.get("/api/country-history", apiLimiter, requireAuth, (req, res) => {
     } else {
       // MAX: weekly averages across all data
       rows = db.prepare(`
-        SELECT MIN(r.timestamp) as timestamp,
+        SELECT MAX(r.timestamp) as timestamp,
           ROUND(AVG(CASE WHEN cd.country='USA' THEN cd.price END), 2) as usa_price,
           ROUND(AVG(CASE WHEN cd.country='China' THEN cd.price END), 2) as china_price
         FROM readings r
@@ -438,7 +438,7 @@ app.get("/api/bitcoin-history", apiLimiter, requireAuth, (req, res) => {
     } else if (range === '1Y') {
       const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).toISOString().split('T')[0];
       rows = db.prepare(`
-        SELECT MIN(timestamp) as timestamp, ROUND(AVG(price), 2) as price
+        SELECT MAX(timestamp) as timestamp, ROUND(AVG(price), 2) as price
         FROM bitcoin_data WHERE timestamp >= ?
         GROUP BY strftime('%Y-%W', timestamp)
         ORDER BY timestamp ASC
@@ -450,7 +450,7 @@ app.get("/api/bitcoin-history", apiLimiter, requireAuth, (req, res) => {
     } else {
       // MAX
       rows = db.prepare(`
-        SELECT MIN(timestamp) as timestamp, ROUND(AVG(price), 2) as price
+        SELECT MAX(timestamp) as timestamp, ROUND(AVG(price), 2) as price
         FROM bitcoin_data
         GROUP BY strftime('%Y-%W', timestamp)
         ORDER BY timestamp ASC
